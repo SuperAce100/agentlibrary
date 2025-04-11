@@ -25,7 +25,7 @@ When making agents, make sure they are performing general tasks that can be perf
 For each agent, provide a name, description, and justification. Your justification should be an exact, minimal,quote from the task description that inspired you to create this agent. If there is no particular part of the task description that inspired you to create this agent, leave it blank.
 """
 
-def decompose_task(task: str) -> Dict[str, str]:
+def decompose_task(task: str) -> Decomposition:
     response = llm_call(
         f"Task: {task}",
         system_prompt=planner_system_prompt,
