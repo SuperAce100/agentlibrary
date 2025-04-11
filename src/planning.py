@@ -36,7 +36,7 @@ Assign tasks to agents using this consistent format:
 ```
 ## [Task Title]
 ### [Sub-agent Name]
-*[Detailed prompt explaining exactly what this sub-agent should do, what format they should follow, and any specific requirements or constraints]*
+*[Detailed prompt explaining exactly what this sub-agent should do, what format they should follow, and any specific requirements or constraints. Tell them how much to write, as well as any other specific instructions.]*
 ```
 
 ## Collaboration Guidelines
@@ -46,12 +46,14 @@ Create dependencies between agents when appropriate (e.g., "Use the research pro
 Allow for iteration when necessary
 Balance workload appropriately among sub-agents
 Maintain clear communication standards between agents
+All sub-agents should write in the final section. This section should contain subsections for each sub-agent, so it can clearly express its ideas. Each of these subsections should be labeled with the name of the sub-agent, as like before.
 
 ## IMPORTANT NOTICES
 - Only include the sub-agents themselves in your analysis, not any other agents like yourself.
 - Only include the sub-agents in the order they should complete their tasks.
+DO NOT INVENT ANY AGENTS
 
-Express your thinking in <think> tags. Don't include anything that's not absolutely necessary in your response. Especially don't include any sub-agent names, other than exactly where you want them to work.
+Express your thinking in <think> tags. Don't include anything that's not absolutely necessary in your response. Especially don't include any sub-agent names, other than exactly where you want them to work. Don't include any summarization tasks, just let the sub-agents do their own work.
 """
 
 def plan_task(task: str, sub_agents: list[Agent]) -> str:

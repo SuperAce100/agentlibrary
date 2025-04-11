@@ -1,4 +1,3 @@
-from typing import Dict
 from pydantic import BaseModel
 from models.models import llm_call
 
