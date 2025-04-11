@@ -1,7 +1,7 @@
 [project]
 name = "symphony-v2"
 version = "0.1.0"
-description = "Add your description here"
+description = "Dynamic sub-agent creation and orchestration"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
