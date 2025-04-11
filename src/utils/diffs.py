@@ -64,8 +64,8 @@ def find_best_match(search_text: str, corpus: str) -> str:
         return search_text
 
     words = corpus.split()
-    best_match = ""
-    best_ratio = 0
+    best_match: str = ""
+    best_ratio: float = 0
 
     window_size = min(len(search_text.split()), len(words))
     if window_size == 0:

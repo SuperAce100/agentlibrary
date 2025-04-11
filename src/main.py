@@ -70,7 +70,7 @@ def run_symphony(task: str, verbose: bool = False) -> str:
     return cleaned_document
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--verbose", type=bool, default=False)

@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Any
 from pydantic import BaseModel
 
 
@@ -7,7 +7,7 @@ class Tool:
         self,
         name: str,
         description: str,
-        function: Callable,
+        function: Callable[..., str],
         argument_schema: BaseModel,
     ):
         self.name = name
@@ -15,7 +15,7 @@ class Tool:
         self.function = function
         self.argument_schema = argument_schema
 
-    def __call__(self, arguments: dict) -> str:
+    def __call__(self, arguments: dict[str, Any]) -> str:
         if not self.argument_schema.model_validate(arguments):
             return f"Invalid arguments: {arguments}"
         return self.function(**arguments)

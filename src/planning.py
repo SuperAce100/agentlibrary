@@ -72,7 +72,7 @@ def plan_task(task: str, sub_agents: list[Agent]) -> str:
     # Remove all content between <think> tags
     template = re.sub(r"<think>.*?</think>", "", template, flags=re.DOTALL)
 
-    return template
+    return str(template)
 
 
 def get_agent_order(template: str, sub_agents: list[Agent]) -> list[str]:

@@ -17,37 +17,35 @@ class Agent:
         tools: list[Tool],
         model: str = text_model,
     ):
-        self.name = name
-        self.system_prompt = system_prompt
-        self.model = model
-        self.messages = [{"role": "system", "content": self.system_prompt}]
-        self.tools = tools
-        self.data = []
+        self.name: str = name
+        self.system_prompt: str = system_prompt
+        self.model: str = model
+        self.messages: list[dict[str, str]] = [
+            {"role": "system", "content": self.system_prompt}
+        ]
+        self.tools: list[Tool] = tools
+        self.data: list[str] = []
 
     @staticmethod
-    def from_config(config: AgentConfig, model: str = text_model):
+    def from_config(config: AgentConfig, model: str = text_model) -> "Agent":
         return Agent(config.name, config.system_prompt, [], model)
 
-    def pass_context(self, context: str, role: str = "user"):
+    def pass_context(self, context: str, role: str = "user") -> None:
         self.messages.append({"role": role, "content": context})
 
-    def call(self, prompt: str, response_format: BaseModel = None):
+    def call(self, prompt: str) -> str:
         self.messages.append({"role": "user", "content": prompt})
-        response = llm_call_messages(
-            self.messages, model=self.model, response_format=response_format
-        )
+        response = llm_call_messages(self.messages, model=self.model)
         self.messages.append({"role": "assistant", "content": response})
-        return response
+        return str(response)
 
-    async def call_async(self, prompt: str, response_format: BaseModel = None):
+    async def call_async(self, prompt: str) -> str:
         self.messages.append({"role": "user", "content": prompt})
-        response = await llm_call_messages_async(
-            self.messages, model=self.model, response_format=response_format
-        )
+        response = await llm_call_messages_async(self.messages, model=self.model)
         self.messages.append({"role": "assistant", "content": response})
-        return response
+        return str(response)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Agent: {self.name}\nSystem Prompt: {self.system_prompt}\nTools: {self.tools}\nModel: {self.model}\nMessages: {self.messages}\nData: {self.data}"
 
 

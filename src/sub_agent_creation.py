@@ -41,7 +41,7 @@ def generate_system_prompt(name: str, description: str, justification: str) -> s
         prompt=user_prompt, system_prompt=prompt_engineering_system_prompt
     )
 
-    return prompt_engineer_response
+    return str(prompt_engineer_response)
 
 
 def create_sub_agent(name: str, description: str, justification: str) -> Agent:

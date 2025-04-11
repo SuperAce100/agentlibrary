@@ -1,7 +1,7 @@
 from openai import OpenAI, AsyncOpenAI
 from pydantic import BaseModel
 import tiktoken
-from typing import List
+from typing import List, Any
 import os
 import dotenv
 
@@ -22,10 +22,10 @@ async_client = AsyncOpenAI(
 
 def llm_call(
     prompt: str,
-    system_prompt: str = None,
-    response_format: BaseModel = None,
+    system_prompt: str | None = None,
+    response_format: BaseModel | None = None,
     model: str = text_model,
-):
+) -> str | BaseModel:
     """
     Make a LLM call
 
@@ -44,13 +44,13 @@ def llm_call(
     ]
     messages = [msg for msg in messages if msg is not None]
 
-    kwargs = {"model": model, "messages": messages}
+    kwargs: dict[str, Any] = {"model": model, "messages": messages}
 
     if response_format is not None:
         schema = response_format.model_json_schema()
         # print("schema", schema)
 
-        def process_schema(schema_dict):
+        def process_schema(schema_dict: dict[str, Any]) -> dict[str, Any]:
             if schema_dict.get("type") not in ["object", "array"]:
                 return schema_dict
 
@@ -111,8 +111,10 @@ def llm_call(
 
 
 def llm_call_messages(
-    messages: List[dict], response_format: BaseModel = None, model: str = text_model
-):
+    messages: list[dict[str, str]],
+    response_format: BaseModel = None,
+    model: str = text_model,
+) -> str | BaseModel:
     """
     Make a LLM call with a list of messages instead of a prompt + system prompt
 
@@ -121,7 +123,7 @@ def llm_call_messages(
         `response_format` (`BaseModel`, optional): Pydantic model for structured responses. Defaults to None.
         `model` (`str`, optional): Model identifier to use. Defaults to "quasar-alpha".
     """
-    kwargs = {"model": model, "messages": messages}
+    kwargs: dict[str, Any] = {"model": model, "messages": messages}
 
     if response_format is not None:
         schema = response_format.schema()
@@ -147,8 +149,10 @@ def llm_call_messages(
 
 
 async def llm_call_messages_async(
-    messages: List[dict], response_format: BaseModel = None, model: str = text_model
-):
+    messages: list[dict[str, str]],
+    response_format: BaseModel = None,
+    model: str = text_model,
+) -> str | BaseModel:
     """
     Make a LLM call with a list of messages instead of a prompt + system prompt
 
@@ -157,7 +161,7 @@ async def llm_call_messages_async(
         `response_format` (`BaseModel`, optional): Pydantic model for structured responses. Defaults to None.
         `model` (`str`, optional): Model identifier to use. Defaults to "quasar-alpha".
     """
-    kwargs = {"model": model, "messages": messages}
+    kwargs: dict[str, Any] = {"model": model, "messages": messages}
 
     if response_format is not None:
         schema = response_format.schema()
@@ -184,7 +188,9 @@ async def llm_call_messages_async(
     return response.choices[0].message.content
 
 
-def num_tokens_from_messages(messages: List[dict], model: str = text_model) -> int:
+def num_tokens_from_messages(
+    messages: list[dict[str, str]], model: str = text_model
+) -> int:
     """Returns the number of tokens used by a list of messages."""
     try:
         encoding = tiktoken.encoding_for_model(model)

@@ -50,7 +50,7 @@ def clean_up_document(document: str, agent_names: list[str]) -> str:
 
     final_document = "\n".join(lines)
 
-    return mdformat.text(final_document)
+    return str(mdformat.text(final_document))
 
 
 if __name__ == "__main__":
