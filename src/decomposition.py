@@ -20,7 +20,7 @@ Your job is to break down the following task into different skills, each of whic
 Think of assembling a team to complete the task - what are the different roles that need to be filled?
 Prefer making a small number of agents that can each do one thing well. Don't add agents that are not explicitly required to complete the task.
 
-When making agents, make sure they are performing general tasks that can be performed by any agent, not specific to the task at hand. For example, if the task is to write a paper about AI, don't make an agent that is only able to write about AI, but rather a general writer agent.
+When making agents, make sure they are performing general tasks that can be performed by any agent, not specific to the task at hand. For example, if the task is to write a paper about AI, don't make an agent that is only able to write about AI, but rather a general writer agent. Never mention the task at hand in the description.
 
 For each agent, provide a name, description, and justification. Your justification should be an exact, minimal,quote from the task description that inspired you to create this agent. If there is no particular part of the task description that inspired you to create this agent, leave it blank.
 """

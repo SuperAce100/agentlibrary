@@ -1,5 +1,5 @@
-from models import llm_call_messages, llm_call_messages_async, text_model
-from tools import Tool
+from models.models import llm_call_messages, llm_call_messages_async, text_model
+from models.tools import Tool
 import asyncio
 from pydantic import BaseModel
 
@@ -37,6 +37,9 @@ class Agent:
         response = await llm_call_messages_async(self.messages, model=self.model, response_format=response_format)
         self.messages.append({"role": "assistant", "content": response})
         return response
+    
+    def __str__(self):
+        return f"Agent: {self.name}\nSystem Prompt: {self.system_prompt}\nTools: {self.tools}\nModel: {self.model}\nMessages: {self.messages}\nData: {self.data}"
 
 if __name__ == "__main__":
     agent = Agent(
