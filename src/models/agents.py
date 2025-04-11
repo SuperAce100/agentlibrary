@@ -26,6 +26,9 @@ class Agent:
     def from_config(config: AgentConfig, model: str = text_model):
         return Agent(config.name, config.system_prompt, [], model)
 
+    def pass_context(self, context: str, role: str = "user"):
+        self.messages.append({"role": role, "content": context})
+
     def call(self, prompt: str, response_format: BaseModel = None):
         self.messages.append({"role": "user", "content": prompt})
         response = llm_call_messages(self.messages, model=self.model, response_format=response_format)
