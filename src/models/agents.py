@@ -26,15 +26,15 @@ class Agent:
     def from_config(config: AgentConfig, model: str = text_model):
         return Agent(config.name, config.system_prompt, [], model)
 
-    def call(self, prompt: str):
+    def call(self, prompt: str, response_format: BaseModel = None):
         self.messages.append({"role": "user", "content": prompt})
-        response = llm_call_messages(self.messages, model=self.model)
+        response = llm_call_messages(self.messages, model=self.model, response_format=response_format)
         self.messages.append({"role": "assistant", "content": response})
         return response
 
-    async def call_async(self, prompt: str):
+    async def call_async(self, prompt: str, response_format: BaseModel = None):
         self.messages.append({"role": "user", "content": prompt})
-        response = await llm_call_messages_async(self.messages, model=self.model)
+        response = await llm_call_messages_async(self.messages, model=self.model, response_format=response_format)
         self.messages.append({"role": "assistant", "content": response})
         return response
 
