@@ -140,7 +140,7 @@ def llm_call_messages(
         }
 
         response = client.chat.completions.create(**kwargs)
-        print("response", response)
+        # print("response", response)
         return response_format.parse_raw(response.choices[0].message.content)
 
     return client.chat.completions.create(**kwargs).choices[0].message.content
