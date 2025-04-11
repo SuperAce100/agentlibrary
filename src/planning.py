@@ -56,51 +56,69 @@ DO NOT INVENT ANY AGENTS
 Express your thinking in <think> tags. Don't include anything that's not absolutely necessary in your response. Especially don't include any sub-agent names, other than exactly where you want them to work. Don't include any summarization tasks, just let the sub-agents do their own work.
 """
 
+
 def plan_task(task: str, sub_agents: list[Agent]) -> str:
     """
     Plan a task for a list of sub-agents into a template document
     """
-        
+
     sub_agent_names = ", ".join([f"{agent.name}" for agent in sub_agents])
 
     template = llm_call(
         f"User's task: {task}, Sub-agents: {sub_agent_names}",
-        system_prompt=orchestrator_system_prompt
+        system_prompt=orchestrator_system_prompt,
     )
 
     # Remove all content between <think> tags
-    template = re.sub(r'<think>.*?</think>', '', template, flags=re.DOTALL)
-    
+    template = re.sub(r"<think>.*?</think>", "", template, flags=re.DOTALL)
+
     return template
+
 
 def get_agent_order(template: str, sub_agents: list[Agent]) -> list[str]:
     """
     Get the order of agents based on their appearance in the template
     """
     agent_order = []
-    for match in re.finditer(r'### ([^\n]+)', template):
+    for match in re.finditer(r"### ([^\n]+)", template):
         agent_name = match.group(1).strip()
         for agent in sub_agents:
             if agent.name == agent_name:
                 agent_order.append(agent.name)
                 break
     return agent_order
+
+
 if __name__ == "__main__":
     sub_agents = [
-        Agent(name="Business Analyst", system_prompt="You are a business analyst sub-agent that analyzes a given topic. You will be given a topic and you will need to analyze it and return the results.", tools=[]),
-        Agent(name="Customs Lawyer", system_prompt="You are a customs lawyer sub-agent that analyzes a given topic. You will be given a topic and you will need to analyze it and return the results.", tools=[]),
-        Agent(name="Market Analyst", system_prompt="You are a market analyst sub-agent that analyzes a given topic. You will be given a topic and you will need to analyze it and return the results.", tools=[]),
-        Agent(name="Branding Expert", system_prompt="You are a branding expert sub-agent that analyzes a given topic. You will be given a topic and you will need to analyze it and return the results.", tools=[]),
+        Agent(
+            name="Business Analyst",
+            system_prompt="You are a business analyst sub-agent that analyzes a given topic. You will be given a topic and you will need to analyze it and return the results.",
+            tools=[],
+        ),
+        Agent(
+            name="Customs Lawyer",
+            system_prompt="You are a customs lawyer sub-agent that analyzes a given topic. You will be given a topic and you will need to analyze it and return the results.",
+            tools=[],
+        ),
+        Agent(
+            name="Market Analyst",
+            system_prompt="You are a market analyst sub-agent that analyzes a given topic. You will be given a topic and you will need to analyze it and return the results.",
+            tools=[],
+        ),
+        Agent(
+            name="Branding Expert",
+            system_prompt="You are a branding expert sub-agent that analyzes a given topic. You will be given a topic and you will need to analyze it and return the results.",
+            tools=[],
+        ),
     ]
 
-    template = plan_task("Create a comprehensive business proposal for an airline focused on connecting China and the West Coast of the US. Consider the idea’s financial viability, any potential legal challenges, the state of the market, and brand building potential.", sub_agents)
+    template = plan_task(
+        "Create a comprehensive business proposal for an airline focused on connecting China and the West Coast of the US. Consider the idea’s financial viability, any potential legal challenges, the state of the market, and brand building potential.",
+        sub_agents,
+    )
 
     print(template)
 
     agent_order = get_agent_order(template, sub_agents)
     print(agent_order)
-
-
-
-
-    

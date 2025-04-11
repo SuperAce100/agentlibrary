@@ -3,7 +3,13 @@ from pydantic import BaseModel
 
 
 class Tool:
-    def __init__(self, name: str, description: str, function: Callable, argument_schema: BaseModel):
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        function: Callable,
+        argument_schema: BaseModel,
+    ):
         self.name = name
         self.description = description
         self.function = function
@@ -17,6 +23,7 @@ class Tool:
     def __str__(self) -> str:
         return f"{self.name}: {self.description}\nArguments: {self.argument_schema}"
 
+
 if __name__ == "__main__":
 
     class TestArgumentSchema(BaseModel):
@@ -26,6 +33,6 @@ if __name__ == "__main__":
         name="test",
         description="Test tool",
         function=lambda x: str(x + 2) + " test",
-        argument_schema=TestArgumentSchema
+        argument_schema=TestArgumentSchema,
     )
     print(test_tool({"x": 1}))

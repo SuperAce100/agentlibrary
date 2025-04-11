@@ -183,6 +183,7 @@ async def llm_call_messages_async(
     # print("response", response)
     return response.choices[0].message.content
 
+
 def num_tokens_from_messages(messages: List[dict], model: str = text_model) -> int:
     """Returns the number of tokens used by a list of messages."""
     try:

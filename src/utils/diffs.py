@@ -1,11 +1,12 @@
 # DIFF FORMAT
-# <<<<<<< SEARCH 
-#(old code)
+# <<<<<<< SEARCH
+# (old code)
 # =======
-#(new code)
-# >>>>>>> REPLACE 
+# (new code)
+# >>>>>>> REPLACE
 
 import difflib
+
 
 def parse_diff(diff: str) -> tuple[str, str]:
     """
@@ -18,66 +19,67 @@ def parse_diff(diff: str) -> tuple[str, str]:
     search_marker = "<<<<<<< SEARCH"
     separator = "======="
     replace_marker = ">>>>>>> REPLACE"
-    
+
     # Extract sections between markers
     search_start = diff.find(search_marker)
     if search_start == -1:
         return "", ""
-    
+
     separator_pos = diff.find(separator, search_start)
     if separator_pos == -1:
         return "", ""
-    
+
     replace_end = diff.find(replace_marker, separator_pos)
     if replace_end == -1:
         return "", ""
-    
+
     # Extract the content between markers
     old_start = search_start + len(search_marker)
     old_code = diff[old_start:separator_pos].strip()
-    
+
     new_start = separator_pos + len(separator)
     new_code = diff[new_start:replace_end].strip()
-    
+
     return old_code, new_code
 
 
 def find_best_match(search_text: str, corpus: str) -> str:
     """
     Find the best matching substring in the corpus for the given search text.
-    
+
     Parameters:
     search_text (str): The text to search for
     corpus (str): The document to search in
-    
+
     Returns:
     str: The best matching section of the corpus
     """
     # Split the corpus into lines to search
     lines = corpus.splitlines()
-    
+
     if not lines:
         return ""
-    
+
     if search_text in corpus:
         return search_text
-    
+
     words = corpus.split()
     best_match = ""
     best_ratio = 0
-    
+
     window_size = min(len(search_text.split()), len(words))
     if window_size == 0:
         return ""
-        
+
     for i in range(len(words) - window_size + 1):
-        window = " ".join(words[i:i + window_size])
+        window = " ".join(words[i : i + window_size])
         ratio = difflib.SequenceMatcher(None, search_text, window).ratio()
         if ratio > best_ratio:
             best_ratio = ratio
             best_match = window
-    
+
     return best_match
+
 
 def find_and_replace(find: str, replace: str, corpus: str) -> str:
     """
@@ -86,12 +88,14 @@ def find_and_replace(find: str, replace: str, corpus: str) -> str:
     best_match = find_best_match(find, corpus)
     return corpus.replace(best_match, replace)
 
+
 def apply_diff(diff: str, corpus: str) -> str:
     """
     Apply a diff to a corpus.
     """
     old_code, new_code = parse_diff(diff)
     return find_and_replace(old_code, new_code, corpus)
+
 
 if __name__ == "__main__":
     diff = """
@@ -119,6 +123,3 @@ if __name__ == "__main__":
     replaced_corpus = find_and_replace(old_code, new_code, corpus)
     print("Replaced corpus:")
     print(replaced_corpus)
-
-
-

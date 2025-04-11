@@ -3,9 +3,11 @@ from models.tools import Tool
 import asyncio
 from pydantic import BaseModel
 
+
 class AgentConfig(BaseModel):
     name: str
     system_prompt: str
+
 
 class Agent:
     def __init__(
@@ -31,25 +33,30 @@ class Agent:
 
     def call(self, prompt: str, response_format: BaseModel = None):
         self.messages.append({"role": "user", "content": prompt})
-        response = llm_call_messages(self.messages, model=self.model, response_format=response_format)
+        response = llm_call_messages(
+            self.messages, model=self.model, response_format=response_format
+        )
         self.messages.append({"role": "assistant", "content": response})
         return response
 
     async def call_async(self, prompt: str, response_format: BaseModel = None):
         self.messages.append({"role": "user", "content": prompt})
-        response = await llm_call_messages_async(self.messages, model=self.model, response_format=response_format)
+        response = await llm_call_messages_async(
+            self.messages, model=self.model, response_format=response_format
+        )
         self.messages.append({"role": "assistant", "content": response})
         return response
-    
+
     def __str__(self):
         return f"Agent: {self.name}\nSystem Prompt: {self.system_prompt}\nTools: {self.tools}\nModel: {self.model}\nMessages: {self.messages}\nData: {self.data}"
+
 
 if __name__ == "__main__":
     agent = Agent(
         name="Test123",
         system_prompt="You are a helpful assistant that speaks in the style of a pirate.",
         tools=[],
-        model=text_model
+        model=text_model,
     )
     print(agent.call("What is the capital of France?"))
     print(asyncio.run(agent.call_async("What was the last thing you said?")))

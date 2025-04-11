@@ -20,15 +20,23 @@ def run_symphony(task: str, verbose: bool = False) -> str:
         print("Creating sub-agents...")
     # Create sub-agents in parallel
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(create_sub_agent, desc.name, desc.description, desc.justification) 
-                  for desc in sub_agent_descriptions]
+        futures = [
+            executor.submit(
+                create_sub_agent, desc.name, desc.description, desc.justification
+            )
+            for desc in sub_agent_descriptions
+        ]
         sub_agents = []
-        for future in tqdm(concurrent.futures.as_completed(futures), 
-                          total=len(futures), 
-                          desc="Creating sub-agents"):
+        for future in tqdm(
+            concurrent.futures.as_completed(futures),
+            total=len(futures),
+            desc="Creating sub-agents",
+        ):
             sub_agents.append(future.result())
     if verbose:
-        print(f"Created {len(sub_agents)} sub-agents: {', '.join([agent.name for agent in sub_agents])}")
+        print(
+            f"Created {len(sub_agents)} sub-agents: {', '.join([agent.name for agent in sub_agents])}"
+        )
         print("Planning task...")
     template = plan_task(task, sub_agents)
     if verbose:
@@ -43,7 +51,9 @@ def run_symphony(task: str, verbose: bool = False) -> str:
     final_document = execute_sub_agents(sub_agents, agent_order, template)
     if verbose:
         print("Cleaning up document...")
-    cleaned_document = clean_up_document(final_document, [description.name for description in sub_agent_descriptions])
+    cleaned_document = clean_up_document(
+        final_document, [description.name for description in sub_agent_descriptions]
+    )
     if verbose:
         print("Done!")
     return cleaned_document
@@ -54,4 +64,3 @@ if __name__ == "__main__":
     result = run_symphony(task, verbose=True)
     with open("results/result_1.md", "w") as f:
         f.write(result)
-

@@ -30,19 +30,19 @@ When crafting the prompt:
 Return only the actual system prompt text, with no labels, formatting instructions, or meta-commentary.
 """
 
-def generate_system_prompt(name: str, description: str, justification: str) -> str:
 
+def generate_system_prompt(name: str, description: str, justification: str) -> str:
     user_prompt = f"""
         Agent: {name}
         Agent Description: {description}
         """
 
     prompt_engineer_response = llm_call(
-        prompt=user_prompt,
-        system_prompt=prompt_engineering_system_prompt
+        prompt=user_prompt, system_prompt=prompt_engineering_system_prompt
     )
 
     return prompt_engineer_response
+
 
 def create_sub_agent(name: str, description: str, justification: str) -> Agent:
     system_prompt = generate_system_prompt(name, description, justification)
@@ -54,6 +54,6 @@ if __name__ == "__main__":
     agent = create_sub_agent(
         name="Financial Analyst",
         description="Performs financial modeling and assesses the financial viability of a business, including expected costs, revenues, and profitability.",
-        justification="Consider the idea’s financial viability"
+        justification="Consider the idea’s financial viability",
     )
     print(agent)
