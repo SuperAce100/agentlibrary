@@ -1,4 +1,4 @@
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from pydantic import BaseModel
 import tiktoken
 from typing import List
@@ -7,7 +7,7 @@ import dotenv
 
 dotenv.load_dotenv()
 
-text_model = "openrouter/quasar-alpha"
+text_model = "openrouter/optimus-alpha"
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -176,10 +176,12 @@ async def llm_call_messages_async(
         }
 
         response = await async_client.chat.completions.create(**kwargs)
-        print("response", response)
+        # print("response", response)
         return response_format.parse_raw(response.choices[0].message.content)
 
-    return await async_client.chat.completions.create(**kwargs).choices[0].message.content
+    response = await async_client.chat.completions.create(**kwargs)
+    # print("response", response)
+    return response.choices[0].message.content
 
 def num_tokens_from_messages(messages: List[dict], model: str = text_model) -> int:
     """Returns the number of tokens used by a list of messages."""

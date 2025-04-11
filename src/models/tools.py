@@ -17,4 +17,15 @@ class Tool:
     def __str__(self) -> str:
         return f"{self.name}: {self.description}\nArguments: {self.argument_schema}"
 
+if __name__ == "__main__":
 
+    class TestArgumentSchema(BaseModel):
+        x: int
+
+    test_tool = Tool(
+        name="test",
+        description="Test tool",
+        function=lambda x: str(x + 2) + " test",
+        argument_schema=TestArgumentSchema
+    )
+    print(test_tool({"x": 1}))
