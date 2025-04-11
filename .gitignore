@@ -1,0 +1,11 @@
+.env
+.venv
+__pycache__
+.vscode
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
