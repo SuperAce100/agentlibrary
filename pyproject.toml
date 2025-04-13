@@ -1,5 +1,5 @@
 [project]
-name = "symphony-v2"
+name = "agentlibrary"
 version = "0.1.0"
 description = "Dynamic sub-agent creation and orchestration"
 readme = "README.md"

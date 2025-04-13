@@ -12,3 +12,4 @@ __pycache__
 
 results/
 .ruff_cache/
+.mypy_cache/

@@ -9,9 +9,9 @@ import argparse
 import concurrent.futures
 
 
-def run_symphony(task: str, verbose: bool = False) -> str:
+def run(task: str, verbose: bool = False) -> str:
     """
-    Run the symphony
+    Run the multi-agent system
     """
 
     if verbose:
@@ -81,7 +81,7 @@ def main() -> None:
     verbose = args.verbose
     output_path = args.output_path
 
-    result = run_symphony(task, verbose=verbose)
+    result = run(task, verbose=verbose)
     with open(output_path, "w") as f:
         f.write(result)
 

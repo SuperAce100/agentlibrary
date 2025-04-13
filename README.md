@@ -1,4 +1,4 @@
-# Symphony v2
+# Agent Library
 
 Dynamic sub-agent creation and orchestration system.
 
