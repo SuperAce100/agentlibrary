@@ -7,7 +7,7 @@ import dotenv
 
 dotenv.load_dotenv()
 
-text_model = "openrouter/optimus-alpha"
+text_model = "openai/gpt-4o-mini"
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -142,10 +142,18 @@ def llm_call_messages(
         }
 
         response = client.chat.completions.create(**kwargs)
-        # print("response", response)
-        return response_format.parse_raw(response.choices[0].message.content)
+        try:
+            return response_format.parse_raw(response.choices[0].message.content)
+        except Exception as e:
+            print("Failed to parse response:", response)
+            raise ValueError(f"Failed to parse response: {e}")
 
-    return client.chat.completions.create(**kwargs).choices[0].message.content
+    response = client.chat.completions.create(**kwargs)
+    try:
+        return response.choices[0].message.content
+    except Exception as e:
+        print("Failed to parse response:", response)
+        raise ValueError(f"Failed to parse response: {e}")
 
 
 async def llm_call_messages_async(
@@ -180,12 +188,18 @@ async def llm_call_messages_async(
         }
 
         response = await async_client.chat.completions.create(**kwargs)
-        # print("response", response)
-        return response_format.parse_raw(response.choices[0].message.content)
+        try:
+            return response_format.parse_raw(response.choices[0].message.content)
+        except Exception as e:
+            print("Failed to parse response:", response)
+            raise ValueError(f"Failed to parse response: {e}")
 
     response = await async_client.chat.completions.create(**kwargs)
-    # print("response", response)
-    return response.choices[0].message.content
+    try:
+        return response.choices[0].message.content
+    except Exception as e:
+        print("Failed to parse response:", response)
+        raise ValueError(f"Failed to parse response: {e}")
 
 
 def num_tokens_from_messages(
