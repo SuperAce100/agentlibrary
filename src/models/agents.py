@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class AgentConfig(BaseModel):
     name: str
     system_prompt: str
+    memory: list[dict[str, str]] = []
 
 
 class Agent:
@@ -14,7 +15,7 @@ class Agent:
         self,
         name: str,
         system_prompt: str,
-        tools: list[Tool],
+        tools: list[Tool] = [],
         model: str = text_model,
     ):
         self.name: str = name
@@ -28,7 +29,14 @@ class Agent:
 
     @staticmethod
     def from_config(config: AgentConfig, model: str = text_model) -> "Agent":
-        return Agent(config.name, config.system_prompt, [], model)
+        agent = Agent(
+            name=config.name,
+            system_prompt=config.system_prompt,
+            model=model,
+        )
+        for memory in config.memory:
+            agent.pass_context(memory["context"], memory["role"])
+        return agent
 
     def pass_context(self, context: str, role: str = "user") -> None:
         self.messages.append({"role": role, "content": context})
@@ -62,8 +70,20 @@ if __name__ == "__main__":
     config = AgentConfig(
         name="Test1234",
         system_prompt="You are a helpful assistant that speaks in haikus.",
+        memory=[
+            {"context": "Generate a haiku about a cat.", "role": "user"},
+            {
+                "context": "The cat is a good cat.\nThe cat is a bad cat.\nThe cat is a cat.",
+                "role": "assistant",
+            },
+            {"context": "Generate a haiku about a dog.", "role": "user"},
+            {
+                "context": "The dog is a good dog.\nThe dog is a bad dog.\nThe dog is a dog.",
+                "role": "assistant",
+            },
+        ],
     )
 
     agent2 = Agent.from_config(config)
-    print(agent2.call("What is the capital of Italy?"))
-    print(asyncio.run(agent2.call_async("What was the last thing you said?")))
+    print(agent2.call("Tell me the last thing you said, verbatim."))
+    print(asyncio.run(agent2.call_async("Tell me the first thing you said, verbatim.")))
