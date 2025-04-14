@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class AgentConfig(BaseModel):
     name: str
     system_prompt: str
+    description: str
     messages: list[dict[str, str]] = []
 
 
@@ -18,6 +19,7 @@ class Agent:
         system_prompt: str,
         tools: list[Tool] = [],
         model: str = text_model,
+        description: str = "",
     ):
         self.name: str = name
         self.system_prompt: str = system_prompt
@@ -27,6 +29,7 @@ class Agent:
         ]
         self.tools: list[Tool] = tools
         self.data: list[str] = []
+        self.description: str = description
 
     @staticmethod
     def from_config(config: AgentConfig, model: str = text_model) -> "Agent":
@@ -34,6 +37,7 @@ class Agent:
             name=config.name,
             system_prompt=config.system_prompt,
             model=model,
+            description=config.description,
         )
         for message in config.messages:
             agent.pass_context(message["content"], message["role"])
@@ -45,7 +49,7 @@ class Agent:
             config = AgentConfig.model_validate_json(f.read())
         return Agent.from_config(config)
 
-    def save_to_file(self, path: str) -> None:
+    def save_to_file(self, path: str = "agents") -> None:
         """Save the agent's configuration to a file.
 
         Args:
@@ -55,6 +59,7 @@ class Agent:
             name=self.name,
             system_prompt=self.system_prompt,
             messages=self.messages[1:],  # skip system prompt
+            description=self.description,
         )
         file_name = os.path.join(path, f"{self.name.lower().replace(' ', '_')}.json")
         with open(file_name, "w") as f:

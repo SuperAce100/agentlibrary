@@ -1,3 +1,4 @@
+import os
 from models.agents import Agent, AgentConfig
 from models.models import llm_call
 
@@ -44,10 +45,21 @@ def generate_system_prompt(name: str, description: str, justification: str) -> s
     return str(prompt_engineer_response)
 
 
-def create_sub_agent(name: str, description: str, justification: str) -> Agent:
+def create_sub_agent(
+    name: str, description: str, justification: str, path: str = "agents"
+) -> Agent:
+    if os.path.exists(os.path.join(path, f"{name.lower().replace(' ', '_')}.json")):
+        return Agent.from_file(
+            os.path.join(path, f"{name.lower().replace(' ', '_')}.json")
+        )
+
     system_prompt = generate_system_prompt(name, description, justification)
-    config = AgentConfig(name=name, system_prompt=system_prompt)
-    return Agent.from_config(config)
+    config = AgentConfig(
+        name=name, system_prompt=system_prompt, description=description
+    )
+    agent = Agent.from_config(config)
+    agent.save_to_file(path)
+    return agent
 
 
 if __name__ == "__main__":
@@ -56,4 +68,6 @@ if __name__ == "__main__":
         description="Performs financial modeling and assesses the financial viability of a business, including expected costs, revenues, and profitability.",
         justification="Consider the idea’s financial viability",
     )
+
+    agent.save_to_file()
     print(agent)

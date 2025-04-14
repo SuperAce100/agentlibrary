@@ -20,7 +20,9 @@ def run(task: str, verbose: bool = False) -> str:
     sub_agent_descriptions = decomposition.sub_agents
 
     if verbose:
-        print("Creating sub-agents...")
+        print("Sub-agents:")
+        for desc in sub_agent_descriptions:
+            print(f"Agent: {desc.name}: {desc.description}")
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
@@ -41,6 +43,10 @@ def run(task: str, verbose: bool = False) -> str:
         print(
             f"Created {len(sub_agents)} sub-agents: {', '.join([agent.name for agent in sub_agents])}"
         )
+
+        for agent in sub_agents:
+            print(f"Agent: {agent.name}: {agent.description}")
+
         print("Planning task...")
 
     template = plan_task(task, sub_agents)
