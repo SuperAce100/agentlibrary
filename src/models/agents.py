@@ -1,3 +1,4 @@
+import os
 from models.models import llm_call_messages, llm_call_messages_async, text_model
 from models.tools import Tool
 import asyncio
@@ -7,7 +8,7 @@ from pydantic import BaseModel
 class AgentConfig(BaseModel):
     name: str
     system_prompt: str
-    memory: list[dict[str, str]] = []
+    messages: list[dict[str, str]] = []
 
 
 class Agent:
@@ -34,9 +35,30 @@ class Agent:
             system_prompt=config.system_prompt,
             model=model,
         )
-        for memory in config.memory:
-            agent.pass_context(memory["context"], memory["role"])
+        for message in config.messages:
+            agent.pass_context(message["content"], message["role"])
         return agent
+
+    @staticmethod
+    def from_file(path: str) -> "Agent":
+        with open(path, "r") as f:
+            config = AgentConfig.model_validate_json(f.read())
+        return Agent.from_config(config)
+
+    def save_to_file(self, path: str) -> None:
+        """Save the agent's configuration to a file.
+
+        Args:
+            path (str): Path to save the configuration file
+        """
+        config = AgentConfig(
+            name=self.name,
+            system_prompt=self.system_prompt,
+            messages=self.messages[1:],  # skip system prompt
+        )
+        file_name = os.path.join(path, f"{self.name.lower().replace(' ', '_')}.json")
+        with open(file_name, "w") as f:
+            f.write(config.model_dump_json(indent=2))
 
     def pass_context(self, context: str, role: str = "user") -> None:
         self.messages.append({"role": role, "content": context})
@@ -70,15 +92,15 @@ if __name__ == "__main__":
     config = AgentConfig(
         name="Test1234",
         system_prompt="You are a helpful assistant that speaks in haikus.",
-        memory=[
-            {"context": "Generate a haiku about a cat.", "role": "user"},
+        messages=[
+            {"content": "Generate a haiku about a cat.", "role": "user"},
             {
-                "context": "The cat is a good cat.\nThe cat is a bad cat.\nThe cat is a cat.",
+                "content": "The cat is a good cat.\nThe cat is a bad cat.\nThe cat is a cat.",
                 "role": "assistant",
             },
-            {"context": "Generate a haiku about a dog.", "role": "user"},
+            {"content": "Generate a haiku about a dog.", "role": "user"},
             {
-                "context": "The dog is a good dog.\nThe dog is a bad dog.\nThe dog is a dog.",
+                "content": "The dog is a good dog.\nThe dog is a bad dog.\nThe dog is a dog.",
                 "role": "assistant",
             },
         ],
@@ -87,3 +109,9 @@ if __name__ == "__main__":
     agent2 = Agent.from_config(config)
     print(agent2.call("Tell me the last thing you said, verbatim."))
     print(asyncio.run(agent2.call_async("Tell me the first thing you said, verbatim.")))
+
+    agent2.save_to_file("agents")
+
+    print("Loading agent from file...")
+    agent3 = Agent.from_file("agents/test1234.json")
+    print(agent3.call("Tell me the last thing you said, verbatim."))
