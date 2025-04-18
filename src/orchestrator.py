@@ -19,6 +19,9 @@ class OrchestrationStep(BaseModel):
     instructions: str
     context: list[str]
 
+    def __str__(self) -> str:
+        return f"Reasoning: {self.reasoning}\nIs done: {self.is_done}\nAgent name: {self.agent_name}\nInstructions: {self.instructions}\nContext: {', '.join(self.context)}"
+
 
 class Orchestrator(Agent):
     def __init__(self):

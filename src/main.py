@@ -84,7 +84,7 @@ def run(
         )
 
         tracer.trace(
-            orchestration_step.model_dump_json(indent=2),
+            str(orchestration_step),
             f"orchestration_step_{i}",
         )
 
