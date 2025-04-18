@@ -1,7 +1,7 @@
 import json
 import os
 from pydantic import BaseModel
-from models.models import llm_call
+from models.llms import llm_call
 
 
 class SubAgentDescription(BaseModel):

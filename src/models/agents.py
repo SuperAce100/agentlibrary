@@ -1,8 +1,14 @@
 import os
-from models.models import llm_call_messages, llm_call_messages_async, text_model
+from models.llms import (
+    llm_call_messages,
+    llm_call_messages_async,
+    text_model,
+    llm_call_with_tools,
+)
 from models.tools import Tool
 import asyncio
 from pydantic import BaseModel
+from models.tool_registry import tool_registry
 
 
 class AgentConfig(BaseModel):
@@ -10,6 +16,7 @@ class AgentConfig(BaseModel):
     system_prompt: str
     description: str
     messages: list[dict[str, str]] = []
+    tools: list[str] = []
 
 
 class Agent:
@@ -38,6 +45,7 @@ class Agent:
             system_prompt=config.system_prompt,
             model=model,
             description=config.description,
+            tools=[tool_registry.get_tool(tool_name) for tool_name in config.tools],
         )
         for message in config.messages:
             agent.pass_context(message["content"], message["role"])
@@ -74,6 +82,20 @@ class Agent:
         self.messages.append({"role": "assistant", "content": response})
         return str(response)
 
+    def call_structured_output(self, prompt: str, schema: BaseModel) -> BaseModel:
+        self.messages.append({"role": "user", "content": prompt})
+        response = llm_call_messages(
+            self.messages, response_format=schema, model=self.model
+        )
+        self.messages.append({"role": "assistant", "content": str(response)})
+        return schema.model_validate(response)
+
+    def call_with_tools(self, prompt: str) -> str:
+        self.messages.append({"role": "user", "content": prompt})
+        response = llm_call_with_tools(self.messages, self.tools, model=self.model)
+        self.messages.append({"role": "assistant", "content": response})
+        return str(response)
+
     async def call_async(self, prompt: str) -> str:
         self.messages.append({"role": "user", "content": prompt})
         response = await llm_call_messages_async(self.messages, model=self.model)
@@ -97,6 +119,7 @@ if __name__ == "__main__":
     config = AgentConfig(
         name="Test1234",
         system_prompt="You are a helpful assistant that speaks in haikus.",
+        description="A test agent that speaks in haikus",
         messages=[
             {"content": "Generate a haiku about a cat.", "role": "user"},
             {
@@ -109,6 +132,7 @@ if __name__ == "__main__":
                 "role": "assistant",
             },
         ],
+        tools=[],
     )
 
     agent2 = Agent.from_config(config)
@@ -120,3 +144,44 @@ if __name__ == "__main__":
     print("Loading agent from file...")
     agent3 = Agent.from_file("agents/test1234.json")
     print(agent3.call("Tell me the last thing you said, verbatim."))
+
+    def get_weather(city: str) -> str:
+        if city == "Stanford":
+            return "The weather in Stanford is sunny."
+        else:
+            return f"The weather in {city} is cloudy."
+
+    class WeatherArgs(BaseModel):
+        city: str
+
+    def get_news(topic: str) -> str:
+        if topic == "Stanford":
+            return "Stanford is doing really great research in AI."
+        else:
+            return f"The news about {topic} is that it is good."
+
+    class NewsArgs(BaseModel):
+        topic: str
+
+    tool_registry.register(
+        Tool(
+            name="get_weather",
+            description="Get the weather in a city",
+            function=get_weather,
+            argument_schema=WeatherArgs,
+        )
+    )
+    tool_registry.register(
+        Tool(
+            name="get_news",
+            description="Get the news about a topic",
+            function=get_news,
+            argument_schema=NewsArgs,
+        )
+    )
+
+    config.tools = ["get_weather", "get_news"]
+
+    agent4 = Agent.from_config(config)
+    print(agent4.call_with_tools("What is the weather in Stanford?"))
+    print(agent4.call_with_tools("What is some cool news about New York?"))
