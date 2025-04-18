@@ -50,7 +50,10 @@ class EpisodicMemoryStore:
     """Manages storage, embedding, and retrieval of episodic memories."""
     def __init__(self, embedding_model: str = "text-embedding-3-small"):
         self.memories: List[EpisodicMemory] = []
-        self.client = OpenAI() # Assumes OPENAI_API_KEY is set in environment
+        self.client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.getenv("OPENROUTER_API_KEY"),
+        )
         self.embedding_model = embedding_model
 
     def _get_embedding(self, text: str) -> List[float]:
