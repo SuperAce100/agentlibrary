@@ -1,12 +1,13 @@
 import os
 from models.models import llm_call_messages, llm_call_messages_async, text_model
 from models.tools import Tool
-from .memory import EpisodicMemoryStore, ProceduralMemoryStore, EpisodicMemory, ProceduralMemory
+from .memory import EpisodicMemoryStore, ProceduralMemoryStore, EpisodicMemory, ProceduralMemory, update_prompt
 import asyncio
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, Tuple, List
 import json
 import numpy as np
+import re
 
 
 class AgentConfig(BaseModel):
@@ -187,7 +188,7 @@ class Agent:
     ) -> None:
         """
         Adds a record of the interaction to the agent's episodic memory store.
-        This should be called *after* an interaction (e.g., after agent.call).
+        To be called after after agent.call.
         """
         memory_content = f"User: '{user_input}' | Agent ({self.name}): '{agent_response}'"
         self.episodic_memory_store.add_memory(
@@ -206,7 +207,7 @@ class Agent:
     ) -> None:
         """
         Updates the agent's procedural memory (skills/flaws) based on feedback.
-        This should be called *after* an interaction and evaluation.
+        To be called after an interaction and evaluation.
         """
         self.procedural_memory_store.add_or_update_skill(
             skill_description=skill_description,
@@ -235,6 +236,91 @@ class Agent:
                 f"Tools: {len(self.tools)}\nModel: {self.model}\n"
                 f"Messages: {len(self.messages)}\nData: {len(self.data)}\n"
                 f"Episodic Memories: {episodic_count}\nProcedural Skills: {procedural_count}")
+
+    def give_feedback(
+        self,
+        evaluated_agent_name: str,
+        evaluated_agent_prompt: str,
+        user_input: str,
+        agent_response: str,
+        evaluation_criteria: str = "Evaluate based on helpfulness, correctness, adherence to instructions, and overall quality.",
+        model: Optional[str] = None
+    ) -> Tuple[Optional[float], Optional[str]]:
+        """
+        Returns:
+            A tuple containing:
+            - float: The numerical feedback score (0.0-1.0) or None if parsing fails.
+            - str: The textual feedback or None if parsing fails.
+        """
+        evaluator_model = model or self.model
+        print(f"\n--- Agent '{self.name}' evaluating response from '{evaluated_agent_name}' using {evaluator_model} ---")
+
+        feedback_prompt = f"""
+You are an impartial evaluator assessing an AI agent's performance.
+Your goal is to provide constructive feedback, including a numerical score and textual commentary.
+
+**Agent Being Evaluated:** {evaluated_agent_name}
+**Agent's System Prompt:**
+---
+{evaluated_agent_prompt}
+---
+
+**Interaction:**
+User Input: "{user_input}"
+Agent Response: "{agent_response}"
+
+**Evaluation Criteria:** {evaluation_criteria}
+
+**Instructions:**
+1. Analyze the agent's response in the context of the user input and the agent's system prompt.
+2. Provide concise, constructive textual feedback explaining your assessment based on the criteria.
+3. Assign a numerical score between 0.0 (very poor) and 1.0 (excellent) reflecting the overall quality.
+4. Format your output *exactly* as follows:
+Score: [Your numerical score, e.g., 0.85]
+Feedback: [Your textual feedback]
+"""
+
+        messages = [
+            {"role": "system", "content": "You are an impartial and analytical AI evaluator."},
+            {"role": "user", "content": feedback_prompt}
+        ]
+
+        try:
+            llm_response = llm_call_messages(messages, model=evaluator_model)
+
+            score_match = re.search(r"Score:\s*([0-9.]+)", llm_response, re.IGNORECASE)
+            feedback_match = re.search(r"Feedback:\s*(.*)", llm_response, re.IGNORECASE | re.DOTALL)
+
+            score = None
+            feedback_text = None
+
+            if score_match:
+                try:
+                    score = float(score_match.group(1))
+                    score = max(0.0, min(1.0, score))
+                except ValueError:
+                    print("Warning: Could not parse score from LLM feedback.")
+                    score = None
+
+            if feedback_match:
+                feedback_text = feedback_match.group(1).strip()
+            else:
+                 print("Warning: Could not parse feedback text from LLM feedback.")
+                 if not score_match and llm_response:
+                     feedback_text = llm_response.strip()
+
+
+            if score is not None or feedback_text is not None:
+                 print(f"Generated Feedback: Score={score}, Text='{feedback_text[:100]}...'")
+                 return score, feedback_text
+            else:
+                 print("Error: Failed to parse both score and feedback from LLM response.")
+                 print(f"LLM Raw Response:\n{llm_response}")
+                 return None, "Error: Failed to parse feedback from LLM."
+
+        except Exception as e:
+            print(f"Error during LLM call for feedback generation: {e}")
+            return None, f"Error generating feedback: {e}"
 
 
 if __name__ == "__main__":
