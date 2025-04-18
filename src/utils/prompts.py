@@ -50,7 +50,7 @@ To refresh your memory, here is the task:
 
 {task}
 
-Here's a list of all the context available to you to pass to the sub-agents. When you pass it, make sure to pass the exact names listed below:
+Here's a list of all the context available to you to pass to the sub-agents. These are the past responses from sub-agents that you've already seen. When you pass it, make sure to pass the exact names listed below:
 
 {context}
 
@@ -73,4 +73,10 @@ orchestrator_final_response_prompt = """
 Here is the task you've been asked to solve. Follow instructions in the task precisely to provide a final response. DO NOT include any other text in your response:
 
 {task}
+"""
+
+sub_agent_prompt = """
+{orchestrator_instructions}
+
+Above is some relevant context
 """

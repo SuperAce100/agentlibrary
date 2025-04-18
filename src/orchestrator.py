@@ -25,7 +25,8 @@ class Orchestrator(Agent):
         super().__init__(
             name="Orchestrator",
             system_prompt=orchestrator_system_prompt,
-            model="openai/o4-mini",
+            # model="openai/o4-mini",
+            model="openai/gpt-4.1-mini",
             description="The orchestrator in charge of everything",
         )
 
@@ -38,20 +39,20 @@ class Orchestrator(Agent):
         )
 
     def orchestrate(
-        self, response: dict[str, str], task: str, context: dict[str, str]
+        self, last_sub_agent: str, response: str, task: str, context: list[str]
     ) -> OrchestrationStep:
         past_response = (
-            past_response_format.format("unimplemented", "unimplemented")
+            past_response_format.format(last_sub_agent, response)
             if len(response) > 0
             else ""
         )
 
         return self.call_structured_output(
             orchestrator_react_prompt.format(
-                response=past_response, task=task, context=context
+                response=past_response, task=task, context="\n".join(context)
             ),
             schema=OrchestrationStep,
         )
 
-    def compile_final_response(self, steps: list[OrchestrationStep], task: str) -> str:
+    def compile_final_response(self, task: str) -> str:
         return self.call(orchestrator_final_response_prompt.format(task=task))

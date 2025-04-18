@@ -1,12 +1,14 @@
 from tqdm import tqdm
+from context_manager import ContextManager
 from decomposition import decompose_task
+from orchestrator import Orchestrator
 from sub_agent_creation import create_sub_agent
 import argparse
 
 import concurrent.futures
 
 
-def run(task: str, verbose: bool = False) -> str:
+def run(task: str, max_iterations: int = 100, verbose: bool = False) -> str:
     """
     Run the multi-agent system
     """
@@ -44,12 +46,49 @@ def run(task: str, verbose: bool = False) -> str:
         for agent in sub_agents:
             print(f"Agent: {agent.name}: {agent.description}")
 
+        print("Conducting pre-survey...")
+
+    agent_registry = {agent.name: agent for agent in sub_agents}
+
+    orchestrator = Orchestrator()
+    pre_survey = orchestrator.pre_survey(task)
+    if verbose:
+        print("Pre-survey:")
+        print(pre_survey)
+
         print("Planning task...")
+
+    plan = orchestrator.plan(task, sub_agents)
+
+    if verbose:
+        print("Plan:")
+        print(plan)
+
+    context_manager = ContextManager()
+    last_agent_name = ""
+    last_response = ""
+
+    for i in range(max_iterations):
+        orchestration_step = orchestrator.orchestrate(
+            last_agent_name, last_response, task, context_manager.get_context_names()
+        )
+
+        if orchestration_step.is_done:
+            break
+
+        last_agent_name = orchestration_step.agent_name
+
+        sub_agent = agent_registry[orchestration_step.agent_name]
+        last_response = sub_agent.call(orchestration_step.instructions)
+
+        context_manager.add_context(orchestration_step.agent_name, last_response)
+
+    final_response = orchestrator.compile_final_response(task)
 
     if verbose:
         print("Done!")
 
-    return "cleaned_document"
+    return final_response
 
 
 def main() -> None:
