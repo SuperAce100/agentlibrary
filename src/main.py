@@ -1,5 +1,5 @@
 from tqdm import tqdm
-from context_manager import ContextManager
+from utils.context_manager import ContextManager
 from decomposition import decompose_task
 from orchestrator import Orchestrator
 from sub_agent_creation import create_sub_agent
