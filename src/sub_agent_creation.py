@@ -1,6 +1,6 @@
 import os
 from models.agents import Agent, AgentConfig
-from models.models import llm_call
+from models.llms import llm_call
 
 prompt_engineering_system_prompt = """
 You are an expert prompt engineer specializing in creating precise, effective system prompts. When given a name and description of an agent, craft a comprehensive system prompt that will guide an LLM to embody this agent's role perfectly. You will also be given a justification for the agent, which is the exact quote from the task description that inspired the overall orchestrator to create this agent.
