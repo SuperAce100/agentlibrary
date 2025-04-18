@@ -14,7 +14,7 @@ class ContextManager:
 
     def _name_entry(self, creator: str, content: str) -> str:
         return llm_call(
-            f"Please give a name for the following context entry in the following format: `original_research`: {content}",
+            f"Please give a descriptive name for the following context entry in the following format: `name_should_look_like_this`: {content}",
             model="openai/gpt-4.1-nano",
         )
 

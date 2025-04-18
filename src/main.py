@@ -7,21 +7,35 @@ import argparse
 
 import concurrent.futures
 
+from utils.tracing import Tracer
 
-def run(task: str, max_iterations: int = 100, verbose: bool = False) -> str:
+
+def run(
+    task: str,
+    max_iterations: int = 100,
+    verbose: bool = False,
+    trace_path: str | None = None,
+) -> str:
     """
     Run the multi-agent system
     """
+    tracer = Tracer(task, trace_path, verbose)
 
-    if verbose:
-        print("Decomposing task...")
+    tracer.update_progress("Decomposing task...")
+
     decomposition = decompose_task(task)
     sub_agent_descriptions = decomposition.sub_agents
 
-    if verbose:
-        print("Sub-agents:")
-        for desc in sub_agent_descriptions:
-            print(f"Agent: {desc.name}: {desc.description}")
+    tracer.trace(
+        "\n".join(
+            [
+                f"Agent: {desc.name}: {desc.description}"
+                for desc in sub_agent_descriptions
+            ]
+        ),
+        "sub_agent_descriptions",
+    )
+    tracer.update_progress("Creating sub-agents...")
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
@@ -38,43 +52,43 @@ def run(task: str, max_iterations: int = 100, verbose: bool = False) -> str:
         ):
             sub_agents.append(future.result())
 
-    if verbose:
-        print(
-            f"Created {len(sub_agents)} sub-agents: {', '.join([agent.name for agent in sub_agents])}"
-        )
+    tracer.trace(
+        "\n".join(
+            [f"Agent: {agent.name}: {agent.description}" for agent in sub_agents]
+        ),
+        "sub_agents",
+    )
 
-        for agent in sub_agents:
-            print(f"Agent: {agent.name}: {agent.description}")
-
-        print("Conducting pre-survey...")
+    tracer.update_progress("Conducting pre-survey...")
 
     agent_registry = {agent.name: agent for agent in sub_agents}
 
     orchestrator = Orchestrator()
     pre_survey = orchestrator.pre_survey(task)
-    if verbose:
-        print("Pre-survey:")
-        print(pre_survey)
+    tracer.trace(pre_survey, "pre_survey")
 
-        print("Planning task...")
+    tracer.update_progress("Planning task...")
 
     plan = orchestrator.plan(task, sub_agents)
-
-    if verbose:
-        print("Plan:")
-        print(plan)
+    tracer.trace(plan, "plan")
 
     context_manager = ContextManager()
     last_agent_name = ""
     last_response = ""
 
     for i in range(max_iterations):
+        tracer.update_progress(f"Orchestrating step {i}...")
+
         orchestration_step = orchestrator.orchestrate(
             last_agent_name, last_response, task, context_manager.get_context_names()
         )
 
-        if verbose:
-            print(f"Orchestration step: {orchestration_step.model_dump_json(indent=2)}")
+        tracer.trace(
+            orchestration_step.model_dump_json(indent=2),
+            f"orchestration_step_{i}",
+        )
+
+        tracer.update_progress(f"Called {orchestration_step.agent_name}...")
 
         if orchestration_step.is_done:
             break
@@ -84,17 +98,19 @@ def run(task: str, max_iterations: int = 100, verbose: bool = False) -> str:
         sub_agent = agent_registry[orchestration_step.agent_name]
         last_response = sub_agent.call(orchestration_step.instructions)
 
-        context_manager.add_context(orchestration_step.agent_name, last_response)
+        response_name = context_manager.add_context(
+            orchestration_step.agent_name, last_response
+        )
 
-        if verbose:
-            print(f"Agent {orchestration_step.agent_name} response:")
-            print(last_response)
+        tracer.trace(
+            last_response,
+            f"sub_agent_response_{response_name}",
+        )
 
     final_response = orchestrator.compile_final_response(task)
 
-    if verbose:
-        print("Done!")
-        print(f"Final response: {final_response}")
+    tracer.update_progress("Done!")
+    tracer.trace(final_response, "final_response")
     return final_response
 
 
@@ -102,18 +118,15 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--verbose", type=bool, default=False)
-    parser.add_argument("--output_path", type=str, default=None)
+    parser.add_argument("--output_path", type=str, default="results/traces")
     args = parser.parse_args()
 
     task = args.task
     verbose = args.verbose
     output_path = args.output_path
 
-    result = run(task, verbose=verbose)
+    result = run(task, verbose=verbose, trace_path=output_path)
     print(result)
-    if output_path:
-        with open(output_path, "w") as f:
-            f.write(result)
 
 
 if __name__ == "__main__":
