@@ -5,7 +5,7 @@ from planning import plan_task, get_agent_order
 from execution import execute_sub_agents
 from utils.writing import clean_up_document
 import argparse
-
+import os
 import concurrent.futures
 
 
@@ -88,6 +88,7 @@ def main() -> None:
     output_path = args.output_path
 
     result = run(task, verbose=verbose)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w") as f:
         f.write(result)
 
