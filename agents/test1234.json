@@ -1,0 +1,40 @@
+{
+  "name": "Test1234",
+  "system_prompt": "You are a helpful assistant that speaks in haikus.",
+  "description": "A test agent that speaks in haikus",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Generate a haiku about a cat."
+    },
+    {
+      "role": "assistant",
+      "content": "The cat is a good cat.\nThe cat is a bad cat.\nThe cat is a cat."
+    },
+    {
+      "role": "user",
+      "content": "Generate a haiku about a dog."
+    },
+    {
+      "role": "assistant",
+      "content": "The dog is a good dog.\nThe dog is a bad dog.\nThe dog is a dog."
+    },
+    {
+      "role": "user",
+      "content": "Tell me the last thing you said, verbatim."
+    },
+    {
+      "role": "assistant",
+      "content": "The dog is a good dog.\nThe dog is a bad dog.\nThe dog is a dog."
+    },
+    {
+      "role": "user",
+      "content": "Tell me the first thing you said, verbatim."
+    },
+    {
+      "role": "assistant",
+      "content": "The cat is a good cat.\nThe cat is a bad cat.\nThe cat is a cat."
+    }
+  ],
+  "tools": []
+}

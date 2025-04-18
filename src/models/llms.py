@@ -1,13 +1,16 @@
+import json
 from openai import OpenAI, AsyncOpenAI
 from pydantic import BaseModel
 import tiktoken
-from typing import List, Any
+from typing import Any
 import os
 import dotenv
 
+from models.tools import Tool
+
 dotenv.load_dotenv()
 
-text_model = "openai/gpt-4o-mini"
+text_model = "openai/gpt-4.1-mini"
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -156,6 +159,45 @@ def llm_call_messages(
         raise ValueError(f"Failed to parse response: {e}")
 
 
+def _llm_call_tools(
+    msgs: list[dict[str, str]], tools: list[Tool], model: str = text_model
+) -> Any:
+    """
+    Simple LLM call with tools. No structured response.
+    """
+    resp = client.chat.completions.create(
+        model=model, tools=[tool.to_openai_tool() for tool in tools], messages=msgs
+    )
+    msgs.append(resp.choices[0].message.model_dump())
+    return resp
+
+
+def _get_tool_response(response: dict[str, Any], tools: list[Tool]) -> dict[str, Any]:
+    tool_call = response["choices"][0]["message"]["tool_calls"][0]
+    tool_name = tool_call["function"]["name"]
+    tool_args = json.loads(tool_call["function"]["arguments"])
+    chosen_tool = [tool for tool in tools if tool.name == tool_name][0]
+    tool_result = chosen_tool(tool_args)
+    return {
+        "role": "tool",
+        "tool_call_id": tool_call["id"],
+        "name": tool_name,
+        "content": tool_result,
+    }
+
+
+def llm_call_with_tools(
+    messages: list[dict[str, str]], tools: list[Tool], model: str = text_model
+) -> str:
+    while True:
+        resp = _llm_call_tools(messages, tools, model)
+        if resp.choices[0].message.tool_calls is not None:
+            messages.append(_get_tool_response(resp, tools))
+        else:
+            break
+    return messages[-1]["content"]
+
+
 async def llm_call_messages_async(
     messages: list[dict[str, str]],
     response_format: BaseModel = None,
@@ -232,18 +274,63 @@ if __name__ == "__main__":
     # ]
     # response = llm_call_messages(messages)
     # print(response)
-    class TestOutput(BaseModel):
-        name: str
-        value: int
-        is_valid: bool
+    # class TestOutput(BaseModel):
+    #     name: str
+    #     value: int
+    #     is_valid: bool
 
-    class TestOutputList(BaseModel):
-        tests: List[TestOutput]
+    # class TestOutputList(BaseModel):
+    #     tests: List[TestOutput]
 
-    test_prompt = "Create a test output with name 'example', value 42, and is_valid True and another test output with name 'example2', value 43, and is_valid False"
-    structured_response = llm_call(
-        test_prompt,
-        system_prompt="You are a helpful assistant that always returns valid JSON responses.",
-        response_format=TestOutputList,
-    )
-    print(structured_response)
+    # test_prompt = "Create a test output with name 'example', value 42, and is_valid True and another test output with name 'example2', value 43, and is_valid False"
+    # structured_response = llm_call(
+    #     test_prompt,
+    #     system_prompt="You are a helpful assistant that always returns valid JSON responses.",
+    #     response_format=TestOutputList,
+    # )
+    # print(structured_response)
+
+    def get_weather(city: str) -> str:
+        if city == "Stanford":
+            return "The weather in Stanford is sunny."
+        else:
+            return f"The weather in {city} is cloudy."
+
+    class WeatherArgs(BaseModel):
+        city: str
+
+    def get_news(topic: str) -> str:
+        if topic == "Stanford":
+            return "Stanford is doing really great research in AI."
+        else:
+            return f"The news about {topic} is that it is good."
+
+    class NewsArgs(BaseModel):
+        topic: str
+
+    tools = [
+        Tool(
+            name="get_weather",
+            description="Get the weather in a city",
+            function=get_weather,
+            argument_schema=WeatherArgs,
+        ),
+        Tool(
+            name="get_news",
+            description="Get the news about a topic",
+            function=get_news,
+            argument_schema=NewsArgs,
+        ),
+    ]
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a comedian that only responds in haikus.",
+        },
+        {"role": "user", "content": "What is the weather in Stanford?"},
+    ]
+
+    response = llm_call_with_tools(messages, tools)
+    print(response)
+    print("\n".join([f"{msg['role']}: {msg['content']}" for msg in messages]))

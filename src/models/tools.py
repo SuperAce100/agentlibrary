@@ -23,6 +23,16 @@ class Tool:
     def __str__(self) -> str:
         return f"{self.name}: {self.description}\nArguments: {self.argument_schema}"
 
+    def to_openai_tool(self) -> dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.argument_schema.model_json_schema(),
+            },
+        }
+
 
 if __name__ == "__main__":
 
