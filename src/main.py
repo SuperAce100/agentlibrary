@@ -73,6 +73,9 @@ def run(task: str, max_iterations: int = 100, verbose: bool = False) -> str:
             last_agent_name, last_response, task, context_manager.get_context_names()
         )
 
+        if verbose:
+            print(f"Orchestration step: {orchestration_step.model_dump_json(indent=2)}")
+
         if orchestration_step.is_done:
             break
 
@@ -83,11 +86,15 @@ def run(task: str, max_iterations: int = 100, verbose: bool = False) -> str:
 
         context_manager.add_context(orchestration_step.agent_name, last_response)
 
+        if verbose:
+            print(f"Agent {orchestration_step.agent_name} response:")
+            print(last_response)
+
     final_response = orchestrator.compile_final_response(task)
 
     if verbose:
         print("Done!")
-
+        print(f"Final response: {final_response}")
     return final_response
 
 
@@ -95,7 +102,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--verbose", type=bool, default=False)
-    parser.add_argument("--output_path", type=str, default="results/result_1.md")
+    parser.add_argument("--output_path", type=str, default=None)
     args = parser.parse_args()
 
     task = args.task
@@ -103,8 +110,10 @@ def main() -> None:
     output_path = args.output_path
 
     result = run(task, verbose=verbose)
-    with open(output_path, "w") as f:
-        f.write(result)
+    print(result)
+    if output_path:
+        with open(output_path, "w") as f:
+            f.write(result)
 
 
 if __name__ == "__main__":

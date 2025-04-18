@@ -87,7 +87,7 @@ class Agent:
         response = llm_call_messages(
             self.messages, response_format=schema, model=self.model
         )
-        self.messages.append({"role": "assistant", "content": response})
+        self.messages.append({"role": "assistant", "content": str(response)})
         return schema.model_validate(response)
 
     def call_with_tools(self, prompt: str) -> str:

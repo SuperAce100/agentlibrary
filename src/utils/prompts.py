@@ -31,7 +31,8 @@ DO NOT include any other headings or sections in your response. DO NOT list next
 orchestrator_planning_prompt = """
 Now you must plan the process of how you will complete the task, at a high level. Based on the pre-survey you just did, you should have a better idea of what you need to do to complete the task.
 
-Here is the team of sub-agents you have at your disposal:
+Here is the team of sub-agents you have at your disposal. Always call them by their exact names, not their index or description:
+
 {sub_agents}
 
 To refresh your memory, here is the task:
@@ -57,7 +58,7 @@ Here's a list of all the context available to you to pass to the sub-agents. The
 Respond with:
 
 1. Your reflection on the past responses and the plan you made
-2. Whether you think you've completed the task or not
+2. Whether you think you've completed the task or not, and are ready to summarize your findings into a final response
 3. The exact name of the sub-agent you've chosen to pass the task to
 4. Detailed instructions what is expected of the sub-agent
 5. The exact names of the context you're passing to the sub-agent

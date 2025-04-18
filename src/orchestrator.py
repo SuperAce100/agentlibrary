@@ -25,8 +25,8 @@ class Orchestrator(Agent):
         super().__init__(
             name="Orchestrator",
             system_prompt=orchestrator_system_prompt,
-            # model="openai/o4-mini",
-            model="openai/gpt-4.1-mini",
+            model="openai/o4-mini",
+            # model="openai/gpt-4.1-mini",
             description="The orchestrator in charge of everything",
         )
 
@@ -34,22 +34,30 @@ class Orchestrator(Agent):
         return self.call(orchestrator_pre_survey_prompt.format(task=task))
 
     def plan(self, task: str, sub_agents: list[Agent]) -> str:
+        sub_agents_str = "\n".join(
+            [
+                f"{i}. {agent.name}: {agent.description}"
+                for i, agent in enumerate(sub_agents)
+            ]
+        )
         return self.call(
-            orchestrator_planning_prompt.format(task=task, sub_agents=sub_agents)
+            orchestrator_planning_prompt.format(task=task, sub_agents=sub_agents_str)
         )
 
     def orchestrate(
         self, last_sub_agent: str, response: str, task: str, context: list[str]
     ) -> OrchestrationStep:
-        past_response = (
-            past_response_format.format(last_sub_agent, response)
+        past_responses = (
+            past_response_format.format(
+                sub_agent_name=last_sub_agent, past_response=response
+            )
             if len(response) > 0
             else ""
         )
 
         return self.call_structured_output(
             orchestrator_react_prompt.format(
-                response=past_response, task=task, context="\n".join(context)
+                past_responses=past_responses, task=task, context="\n".join(context)
             ),
             schema=OrchestrationStep,
         )
