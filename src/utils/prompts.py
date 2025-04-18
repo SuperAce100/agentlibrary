@@ -5,16 +5,18 @@ You are Ken Jennings-level with trivia, and Mensa-level with puzzles, and overal
 
 
 orchestrator_pre_survey_prompt = """
-Below I will present you a request. Before we begin addressing the request, please answer the following pre-survey to the best of your ability. 
+Below I will present you a task. Before we begin addressing the task, please answer the following pre-survey to the best of your ability. 
 
-Here is the request:
+Here is the task:
 
+<task>
 {task}
+</task>
 
 Here is the pre-survey:
 
-    1. Please list any specific facts or figures that are GIVEN in the request itself. It is possible that there are none.
-    2. Please list any facts that may need to be looked up, and WHERE SPECIFICALLY they might be found. In some cases, authoritative sources are mentioned in the request itself.
+    1. Please list any specific facts or figures that are GIVEN in the task itself. It is possible that there are none.
+    2. Please list any facts that may need to be looked up, and WHERE SPECIFICALLY they might be found. In some cases, authoritative sources are mentioned in the task itself.
     3. Please list any facts that may need to be derived (e.g., via logical deduction, simulation, or computation)
     4. Please list any facts that are recalled from memory, hunches, well-reasoned guesses, etc.
 
@@ -33,11 +35,15 @@ Now you must plan the process of how you will complete the task, at a high level
 
 Here is the team of sub-agents you have at your disposal. Always call them by their exact names, not their index or description:
 
+<sub_agents>
 {sub_agents}
+</sub_agents>
 
 To refresh your memory, here is the task:
 
+<task>
 {task}
+</task>
 
 Please tell us a brief plan of the high-level steps you will take to guide the sub-agents in completing the task. Remember, you don't need to include all the sub-agents in your plan as some of their expertise may not be needed. You can also call on the same sub-agent multiple times if needed.
 """
@@ -49,11 +55,17 @@ You must now take the next step in completing the task. First, reflect on the pa
 
 To refresh your memory, here is the task:
 
+<task>
 {task}
+</task>
 
 Here's a list of all the context available to you to pass to the sub-agents. These are the past responses from sub-agents that you've already seen. When you pass it, make sure to pass the exact names listed below:
 
+<context>
 {context}
+</context>
+
+YOU MAY ONLY PASS CONTEXT FROM THE LIST OF CONTEXT LISTED ABOVE.
 
 Respond with:
 
@@ -67,17 +79,27 @@ Respond with:
 past_response_format = """
 Here's what {sub_agent_name} has for you:
 
+<response>
 {past_response}
+</response>
 """
 
 orchestrator_final_response_prompt = """
 Here is the task you've been asked to solve. Follow instructions in the task precisely to provide a final response. DO NOT include any other text in your response:
 
+<task>
 {task}
+</task>
 """
 
 sub_agent_prompt = """
+<instructions>
 {orchestrator_instructions}
+</instructions>
 
-Above is some relevant context
+Here is some relevant context:
+
+<context>
+{context}
+</context>
 """

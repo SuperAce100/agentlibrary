@@ -8,6 +8,7 @@ import argparse
 import concurrent.futures
 
 from utils.tracing import Tracer
+from utils.prompts import sub_agent_prompt
 
 
 def run(
@@ -83,10 +84,7 @@ def run(
             last_agent_name, last_response, task, context_manager.get_context_names()
         )
 
-        tracer.trace(
-            str(orchestration_step),
-            f"orchestration_step_{i}",
-        )
+        tracer.update_agent_loop("Orchestrator", str(orchestration_step))
 
         tracer.update_progress(f"Called {orchestration_step.agent_name}...")
 
@@ -94,19 +92,27 @@ def run(
             break
 
         last_agent_name = orchestration_step.agent_name
+        relevant_context = "\n\n".join(
+            context_manager.get_context(context_name)
+            for context_name in orchestration_step.context
+        )
 
         sub_agent = agent_registry[orchestration_step.agent_name]
-        last_response = sub_agent.call(orchestration_step.instructions)
-
-        response_name = context_manager.add_context(
-            orchestration_step.agent_name, last_response
+        last_response = sub_agent.call(
+            sub_agent_prompt.format(
+                orchestrator_instructions=orchestration_step.instructions,
+                context=relevant_context,
+            )
         )
 
-        tracer.trace(
+        context_manager.add_context(orchestration_step.agent_name, last_response)
+
+        tracer.update_agent_loop(
+            orchestration_step.agent_name,
             last_response,
-            f"sub_agent_response_{response_name}",
         )
 
+    tracer.update_progress("Compiling final response...")
     final_response = orchestrator.compile_final_response(task)
 
     tracer.update_progress("Done!")
