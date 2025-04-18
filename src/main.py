@@ -1,9 +1,6 @@
 from tqdm import tqdm
 from decomposition import decompose_task
 from sub_agent_creation import create_sub_agent
-from planning import plan_task, get_agent_order
-from execution import execute_sub_agents
-from utils.writing import clean_up_document
 import argparse
 
 import concurrent.futures
@@ -49,31 +46,10 @@ def run(task: str, verbose: bool = False) -> str:
 
         print("Planning task...")
 
-    template = plan_task(task, sub_agents)
-
-    if verbose:
-        print(f"Template: {template}")
-        print("Getting agent order...")
-
-    agent_order = get_agent_order(template, sub_agents)
-
-    if verbose:
-        print(f"Agent order: {agent_order}")
-        print("Executing sub-agents...")
-
-    final_document = execute_sub_agents(sub_agents, agent_order, template)
-
-    if verbose:
-        print("Cleaning up document...")
-
-    cleaned_document = clean_up_document(
-        final_document, [description.name for description in sub_agent_descriptions]
-    )
-
     if verbose:
         print("Done!")
 
-    return cleaned_document
+    return "cleaned_document"
 
 
 def main() -> None:

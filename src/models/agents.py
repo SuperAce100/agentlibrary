@@ -82,6 +82,14 @@ class Agent:
         self.messages.append({"role": "assistant", "content": response})
         return str(response)
 
+    def call_structured_output(self, prompt: str, schema: BaseModel) -> BaseModel:
+        self.messages.append({"role": "user", "content": prompt})
+        response = llm_call_messages(
+            self.messages, response_format=schema, model=self.model
+        )
+        self.messages.append({"role": "assistant", "content": response})
+        return schema.model_validate(response)
+
     def call_with_tools(self, prompt: str) -> str:
         self.messages.append({"role": "user", "content": prompt})
         response = llm_call_with_tools(self.messages, self.tools, model=self.model)
