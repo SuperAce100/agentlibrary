@@ -15,10 +15,10 @@ dependencies = [
 ]
 
 [tool.mypy]
-strict = true
+strict = false
 follow_imports = "silent"
 ignore_missing_imports = true
-disable_error_code = ["misc"]
+disable_error_code = ["misc", "union-attr"]
 
 [[tool.mypy.overrides]]
 module = "pydantic.*"

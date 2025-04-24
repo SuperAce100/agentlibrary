@@ -1,28 +1,41 @@
 from tqdm import tqdm
+from utils.context_manager import ContextManager
 from decomposition import decompose_task
+from orchestrator import Orchestrator
 from sub_agent_creation import create_sub_agent
-from planning import plan_task, get_agent_order
-from execution import execute_sub_agents
-from utils.writing import clean_up_document
 import argparse
-import os
 import concurrent.futures
 
+from utils.tracing import Tracer
+from utils.prompts import sub_agent_prompt
 
-def run(task: str, verbose: bool = False) -> str:
+
+def run(
+    task: str,
+    max_iterations: int = 100,
+    verbose: bool = False,
+    trace_path: str | None = None,
+) -> str:
     """
     Run the multi-agent system
     """
+    tracer = Tracer(task, trace_path, verbose)
 
-    if verbose:
-        print("Decomposing task...")
+    tracer.update_progress("Decomposing task...")
+
     decomposition = decompose_task(task)
     sub_agent_descriptions = decomposition.sub_agents
 
-    if verbose:
-        print("Sub-agents:")
-        for desc in sub_agent_descriptions:
-            print(f"Agent: {desc.name}: {desc.description}")
+    tracer.trace(
+        "\n".join(
+            [
+                f"Agent: {desc.name}: {desc.description}"
+                for desc in sub_agent_descriptions
+            ]
+        ),
+        "sub_agent_descriptions",
+    )
+    tracer.update_progress("Creating sub-agents...")
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
@@ -39,58 +52,86 @@ def run(task: str, verbose: bool = False) -> str:
         ):
             sub_agents.append(future.result())
 
-    if verbose:
-        print(
-            f"Created {len(sub_agents)} sub-agents: {', '.join([agent.name for agent in sub_agents])}"
-        )
-
-        for agent in sub_agents:
-            print(f"Agent: {agent.name}: {agent.description}")
-
-        print("Planning task...")
-
-    template = plan_task(task, sub_agents)
-
-    if verbose:
-        print(f"Template: {template}")
-        print("Getting agent order...")
-
-    agent_order = get_agent_order(template, sub_agents)
-
-    if verbose:
-        print(f"Agent order: {agent_order}")
-        print("Executing sub-agents...")
-
-    final_document = execute_sub_agents(sub_agents, agent_order, template)
-
-    if verbose:
-        print("Cleaning up document...")
-
-    cleaned_document = clean_up_document(
-        final_document, [description.name for description in sub_agent_descriptions]
+    tracer.trace(
+        "\n".join(
+            [f"Agent: {agent.name}: {agent.description}" for agent in sub_agents]
+        ),
+        "sub_agents",
     )
 
-    if verbose:
-        print("Done!")
+    tracer.update_progress("Conducting pre-survey...")
 
-    return cleaned_document
+    agent_registry = {agent.name: agent for agent in sub_agents}
+
+    orchestrator = Orchestrator()
+    pre_survey = orchestrator.pre_survey(task)
+    tracer.trace(pre_survey, "pre_survey")
+
+    tracer.update_progress("Planning task...")
+
+    plan = orchestrator.plan(task, sub_agents)
+    tracer.trace(plan, "plan")
+
+    context_manager = ContextManager()
+    last_agent_name = ""
+    last_response = ""
+
+    for i in range(max_iterations):
+        tracer.update_progress(f"Orchestrating step {i}...")
+
+        orchestration_step = orchestrator.orchestrate(
+            last_agent_name, last_response, task, context_manager.get_context_names()
+        )
+
+        tracer.update_agent_loop("Orchestrator", str(orchestration_step))
+
+        tracer.update_progress(f"Called {orchestration_step.agent_name}...")
+
+        if orchestration_step.is_done:
+            break
+
+        last_agent_name = orchestration_step.agent_name
+        relevant_context = "\n\n".join(
+            context_manager.get_context(context_name)
+            for context_name in orchestration_step.context
+        )
+
+        sub_agent = agent_registry[orchestration_step.agent_name]
+        last_response = sub_agent.call(
+            sub_agent_prompt.format(
+                orchestrator_instructions=orchestration_step.instructions,
+                context=relevant_context,
+            )
+        )
+
+        context_manager.add_context(orchestration_step.agent_name, last_response)
+
+        tracer.update_agent_loop(
+            orchestration_step.agent_name,
+            last_response,
+        )
+
+    tracer.update_progress("Compiling final response...")
+    final_response = orchestrator.compile_final_response(task)
+
+    tracer.update_progress("Done!")
+    tracer.trace(final_response, "final_response")
+    return final_response
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--verbose", type=bool, default=False)
-    parser.add_argument("--output_path", type=str, default="results/result_1.md")
+    parser.add_argument("--output_path", type=str, default="results/traces")
     args = parser.parse_args()
 
     task = args.task
     verbose = args.verbose
     output_path = args.output_path
 
-    result = run(task, verbose=verbose)
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, "w") as f:
-        f.write(result)
+    result = run(task, verbose=verbose, trace_path=output_path)
+    print(result)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,22 @@
 import os
-from models.models import llm_call_messages, llm_call_messages_async, text_model
+from models.llms import (
+    llm_call_messages,
+    llm_call_messages_async,
+    text_model,
+    llm_call_with_tools,
+)
 from models.tools import Tool
-from .memory import EpisodicMemoryStore, ProceduralMemoryStore, EpisodicMemory, ProceduralMemory, update_prompt
-import asyncio
+from models.memory import (
+    ProceduralMemoryStore,
+    EpisodicMemory,
+    EpisodicMemoryStore,
+)
+import random
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, Tuple, List
 import json
-import numpy as np
 import re
+from models.tool_registry import tool_registry
 
 
 class AgentConfig(BaseModel):
@@ -15,6 +24,7 @@ class AgentConfig(BaseModel):
     system_prompt: str
     description: str
     messages: list[dict[str, str]] = []
+    tools: list[str] = []
 
 
 class Agent:
@@ -27,7 +37,7 @@ class Agent:
         description: str = "",
         initial_skills: Optional[Dict[str, float]] = None,
         initial_episodic_data: Optional[List[Dict[str, Any]]] = None,
-        initial_procedural_data: Optional[Dict[str, Dict[str, Any]]] = None
+        initial_procedural_data: Optional[Dict[str, Dict[str, Any]]] = None,
     ):
         self.name: str = name
         self.system_prompt: str = system_prompt
@@ -47,30 +57,32 @@ class Agent:
         if initial_procedural_data:
             self.procedural_memory_store.import_skills(initial_procedural_data)
 
-        prompt_skill_key = f"following instructions from system prompt for {self.name}".lower().strip()
+        prompt_skill_key = (
+            f"following instructions from system prompt for {self.name}".lower().strip()
+        )
         if not self.procedural_memory_store.get_skill(prompt_skill_key):
-             self.procedural_memory_store.add_or_update_skill(
-                 skill_description=f"Following instructions from system prompt for {self.name}",
-                 new_score=0.6,
-                 initial_prompt_source=True,
-                 evidence_text=f"Initial System Prompt: '{self.system_prompt[:100]}...'"
-             )
+            self.procedural_memory_store.add_or_update_skill(
+                skill_description=f"Following instructions from system prompt for {self.name}",
+                new_score=0.6,
+                initial_prompt_source=True,
+                evidence_text=f"Initial System Prompt: '{self.system_prompt[:100]}...'",
+            )
         if initial_skills:
             for skill, score in initial_skills.items():
-                 if not self.procedural_memory_store.get_skill(skill):
-                     self.procedural_memory_store.add_or_update_skill(
-                         skill_description=skill,
-                         new_score=score,
-                         initial_prompt_source=True,
-                         evidence_text="Provided during agent initialization."
-                     )
+                if not self.procedural_memory_store.get_skill(skill):
+                    self.procedural_memory_store.add_or_update_skill(
+                        skill_description=skill,
+                        new_score=score,
+                        initial_prompt_source=True,
+                        evidence_text="Provided during agent initialization.",
+                    )
 
     @staticmethod
     def from_config(
         config: AgentConfig,
         model: str = text_model,
         initial_episodic_data: Optional[List[Dict[str, Any]]] = None,
-        initial_procedural_data: Optional[Dict[str, Dict[str, Any]]] = None
+        initial_procedural_data: Optional[Dict[str, Dict[str, Any]]] = None,
     ) -> "Agent":
         agent = Agent(
             name=config.name,
@@ -78,7 +90,8 @@ class Agent:
             model=model,
             description=config.description,
             initial_episodic_data=initial_episodic_data,
-            initial_procedural_data=initial_procedural_data
+            initial_procedural_data=initial_procedural_data,
+            tools=[tool_registry.get_tool(tool_name) for tool_name in config.tools],
         )
         for message in config.messages:
             agent.pass_context(message["content"], message["role"])
@@ -95,9 +108,13 @@ class Agent:
             with open(config_path, "r") as f:
                 config = AgentConfig.model_validate_json(f.read())
         except FileNotFoundError:
-            raise FileNotFoundError(f"Agent configuration file not found: {config_path}")
+            raise FileNotFoundError(
+                f"Agent configuration file not found: {config_path}"
+            )
         except Exception as e:
-            raise IOError(f"Error reading or parsing agent config file {config_path}: {e}")
+            raise IOError(
+                f"Error reading or parsing agent config file {config_path}: {e}"
+            )
 
         loaded_episodic_data = None
         try:
@@ -115,14 +132,18 @@ class Agent:
                 loaded_procedural_data = json.load(f)
             print(f"Loaded procedural memory from: {procedural_path}")
         except FileNotFoundError:
-            print(f"Procedural memory file not found (agent may be new): {procedural_path}")
+            print(
+                f"Procedural memory file not found (agent may be new): {procedural_path}"
+            )
         except Exception as e:
-            print(f"Error reading or parsing procedural memory file {procedural_path}: {e}")
+            print(
+                f"Error reading or parsing procedural memory file {procedural_path}: {e}"
+            )
 
         return Agent.from_config(
             config,
             initial_episodic_data=loaded_episodic_data,
-            initial_procedural_data=loaded_procedural_data
+            initial_procedural_data=loaded_procedural_data,
         )
 
     def save_to_file(self, path: str = "agents") -> None:
@@ -135,7 +156,7 @@ class Agent:
             messages=self.messages[1:],
             description=self.description,
         )
-        base_name = self.name.lower().replace(' ', '_')
+        base_name = self.name.lower().replace(" ", "_")
         config_path = os.path.join(path, f"{base_name}.json")
         episodic_path = os.path.join(path, f"{base_name}_episodic.json")
         procedural_path = os.path.join(path, f"{base_name}_procedural.json")
@@ -172,6 +193,20 @@ class Agent:
         self.messages.append({"role": "assistant", "content": response})
         return str(response)
 
+    def call_structured_output(self, prompt: str, schema: BaseModel) -> BaseModel:
+        self.messages.append({"role": "user", "content": prompt})
+        response = llm_call_messages(
+            self.messages, response_format=schema, model=self.model
+        )
+        self.messages.append({"role": "assistant", "content": str(response)})
+        return schema.model_validate(response)
+
+    def call_with_tools(self, prompt: str) -> str:
+        self.messages.append({"role": "user", "content": prompt})
+        response = llm_call_with_tools(self.messages, self.tools, model=self.model)
+        self.messages.append({"role": "assistant", "content": response})
+        return str(response)
+
     async def call_async(self, prompt: str) -> str:
         self.messages.append({"role": "user", "content": prompt})
         response = await llm_call_messages_async(self.messages, model=self.model)
@@ -184,18 +219,20 @@ class Agent:
         agent_response: str,
         feedback_score: Optional[float] = None,
         feedback_text: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Adds a record of the interaction to the agent's episodic memory store.
         To be called after after agent.call.
         """
-        memory_content = f"User: '{user_input}' | Agent ({self.name}): '{agent_response}'"
+        memory_content = (
+            f"User: '{user_input}' | Agent ({self.name}): '{agent_response}'"
+        )
         self.episodic_memory_store.add_memory(
             content=memory_content,
             metadata=metadata,
             feedback_score=feedback_score,
-            feedback_text=feedback_text
+            feedback_text=feedback_text,
         )
         print(f"--- Episodic memory updated for Agent {self.name} ---")
 
@@ -203,7 +240,7 @@ class Agent:
         self,
         skill_description: str,
         feedback_score: float,
-        feedback_text: Optional[str] = None
+        feedback_text: Optional[str] = None,
     ) -> None:
         """
         Updates the agent's procedural memory (skills/flaws) based on feedback.
@@ -212,30 +249,39 @@ class Agent:
         self.procedural_memory_store.add_or_update_skill(
             skill_description=skill_description,
             new_score=feedback_score,
-            evidence_text=feedback_text or f"Feedback received regarding '{skill_description}'."
+            evidence_text=feedback_text
+            or f"Feedback received regarding '{skill_description}'.",
         )
-        print(f"--- Procedural memory updated for Agent {self.name} regarding '{skill_description}' ---")
+        print(
+            f"--- Procedural memory updated for Agent {self.name} regarding '{skill_description}' ---"
+        )
 
     def get_procedural_summary(self) -> str:
         """Returns the agent's self-assessment summary."""
         return self.procedural_memory_store.get_summary()
 
-    def retrieve_episodic_memories(self, query: str, top_n: int = 3, weights: Optional[Dict[str, float]] = None) -> List[EpisodicMemory]:
-         """Retrieves relevant memories from this agent's episodic store."""
-         effective_weights = weights or {'relevance': 0.4, 'recency': 0.4, 'feedback': 0.2}
-         return self.episodic_memory_store.retrieve_memories(
-             query=query,
-             top_n=top_n,
-             weights=effective_weights
-         )
+    def retrieve_episodic_memories(
+        self, query: str, top_n: int = 3, weights: Optional[Dict[str, float]] = None
+    ) -> List[EpisodicMemory]:
+        """Retrieves relevant memories from this agent's episodic store."""
+        effective_weights = weights or {
+            "relevance": 0.4,
+            "recency": 0.4,
+            "feedback": 0.2,
+        }
+        return self.episodic_memory_store.retrieve_memories(
+            query=query, top_n=top_n, weights=effective_weights
+        )
 
     def __str__(self) -> str:
         episodic_count = len(self.episodic_memory_store.memories)
         procedural_count = len(self.procedural_memory_store.skills)
-        return (f"Agent: {self.name}\nSystem Prompt: {self.system_prompt[:100]}...\n"
-                f"Tools: {len(self.tools)}\nModel: {self.model}\n"
-                f"Messages: {len(self.messages)}\nData: {len(self.data)}\n"
-                f"Episodic Memories: {episodic_count}\nProcedural Skills: {procedural_count}")
+        return (
+            f"Agent: {self.name}\nSystem Prompt: {self.system_prompt[:100]}...\n"
+            f"Tools: {len(self.tools)}\nModel: {self.model}\n"
+            f"Messages: {len(self.messages)}\nData: {len(self.data)}\n"
+            f"Episodic Memories: {episodic_count}\nProcedural Skills: {procedural_count}"
+        )
 
     def give_feedback(
         self,
@@ -244,7 +290,7 @@ class Agent:
         user_input: str,
         agent_response: str,
         evaluation_criteria: str = "Evaluate based on helpfulness, correctness, adherence to instructions, and overall quality.",
-        model: Optional[str] = None
+        model: Optional[str] = None,
     ) -> Tuple[Optional[float], Optional[str]]:
         """
         Returns:
@@ -253,43 +299,50 @@ class Agent:
             - str: The textual feedback or None if parsing fails.
         """
         evaluator_model = model or self.model
-        print(f"\n--- Agent '{self.name}' evaluating response from '{evaluated_agent_name}' using {evaluator_model} ---")
+        print(
+            f"\n--- Agent '{self.name}' evaluating response from '{evaluated_agent_name}' using {evaluator_model} ---"
+        )
 
         feedback_prompt = f"""
-You are an impartial evaluator assessing an AI agent's performance.
-Your goal is to provide constructive feedback, including a numerical score and textual commentary.
+        You are an impartial evaluator assessing an AI agent's performance.
+        Your goal is to provide constructive feedback, including a numerical score and textual commentary.
 
-**Agent Being Evaluated:** {evaluated_agent_name}
-**Agent's System Prompt:**
----
-{evaluated_agent_prompt}
----
+        **Agent Being Evaluated:** {evaluated_agent_name}
+        **Agent's System Prompt:**
+        ---
+        {evaluated_agent_prompt}
+        ---
 
-**Interaction:**
-User Input: "{user_input}"
-Agent Response: "{agent_response}"
+        **Interaction:**
+        User Input: "{user_input}"
+        Agent Response: "{agent_response}"
 
-**Evaluation Criteria:** {evaluation_criteria}
+        **Evaluation Criteria:** {evaluation_criteria}
 
-**Instructions:**
-1. Analyze the agent's response in the context of the user input and the agent's system prompt.
-2. Provide concise, constructive textual feedback explaining your assessment based on the criteria.
-3. Assign a numerical score between 0.0 (very poor) and 1.0 (excellent) reflecting the overall quality.
-4. Format your output *exactly* as follows:
-Score: [Your numerical score, e.g., 0.85]
-Feedback: [Your textual feedback]
-"""
+        **Instructions:**
+        1. Analyze the agent's response in the context of the user input and the agent's system prompt.
+        2. Provide concise, constructive textual feedback explaining your assessment based on the criteria.
+        3. Assign a numerical score between 0.0 (very poor) and 1.0 (excellent) reflecting the overall quality.
+        4. Format your output *exactly* as follows:
+        Score: [Your numerical score, e.g., 0.85]
+        Feedback: [Your textual feedback]
+        """
 
         messages = [
-            {"role": "system", "content": "You are an impartial and analytical AI evaluator."},
-            {"role": "user", "content": feedback_prompt}
+            {
+                "role": "system",
+                "content": "You are an impartial and analytical AI evaluator.",
+            },
+            {"role": "user", "content": feedback_prompt},
         ]
 
         try:
             llm_response = llm_call_messages(messages, model=evaluator_model)
 
             score_match = re.search(r"Score:\s*([0-9.]+)", llm_response, re.IGNORECASE)
-            feedback_match = re.search(r"Feedback:\s*(.*)", llm_response, re.IGNORECASE | re.DOTALL)
+            feedback_match = re.search(
+                r"Feedback:\s*(.*)", llm_response, re.IGNORECASE | re.DOTALL
+            )
 
             score = None
             feedback_text = None
@@ -305,18 +358,19 @@ Feedback: [Your textual feedback]
             if feedback_match:
                 feedback_text = feedback_match.group(1).strip()
             else:
-                 print("Warning: Could not parse feedback text from LLM feedback.")
-                 if not score_match and llm_response:
-                     feedback_text = llm_response.strip()
-
+                print("Warning: Could not parse feedback text from LLM feedback.")
+                if not score_match and llm_response:
+                    feedback_text = llm_response.strip()
 
             if score is not None or feedback_text is not None:
-                 print(f"Generated Feedback: Score={score}, Text='{feedback_text[:100]}...'")
-                 return score, feedback_text
+                print(f"Generated Feedback: Score={score}, Text='{feedback_text}...'")
+                return score, feedback_text
             else:
-                 print("Error: Failed to parse both score and feedback from LLM response.")
-                 print(f"LLM Raw Response:\n{llm_response}")
-                 return None, "Error: Failed to parse feedback from LLM."
+                print(
+                    "Error: Failed to parse both score and feedback from LLM response."
+                )
+                print(f"LLM Raw Response:\n{llm_response}")
+                return None, "Error: Failed to parse feedback from LLM."
 
         except Exception as e:
             print(f"Error during LLM call for feedback generation: {e}")
@@ -325,15 +379,19 @@ Feedback: [Your textual feedback]
 
 if __name__ == "__main__":
     agent_name = "Persistent Pirate"
-    agent_filename_base = agent_name.lower().replace(' ', '_')
+    agent_filename_base = agent_name.lower().replace(" ", "_")
     agent_config_file = f"agents/{agent_filename_base}.json"
 
     try:
         print(f"\n--- Attempting to load agent from {agent_config_file} ---")
         pirate_agent = Agent.from_file(agent_config_file)
         print(f"--- Successfully loaded agent: {pirate_agent.name} ---")
-        print(f"Existing Episodic Memories: {len(pirate_agent.episodic_memory_store.memories)}")
-        print(f"Existing Procedural Skills: {len(pirate_agent.procedural_memory_store.skills)}")
+        print(
+            f"Existing Episodic Memories: {len(pirate_agent.episodic_memory_store.memories)}"
+        )
+        print(
+            f"Existing Procedural Skills: {len(pirate_agent.procedural_memory_store.skills)}"
+        )
         print("Existing Skills Summary:")
         print(pirate_agent.get_procedural_summary())
 
@@ -359,11 +417,13 @@ if __name__ == "__main__":
     print(f"{pirate_agent.name}: {response}")
 
     print("\n--- Updating memory and saving state ---")
-    feedback_score = np.random.uniform(0.5, 0.9)
+    feedback_score = random.uniform(0.5, 0.9)
     feedback_text = f"Recalled context with score {feedback_score:.2f}"
     skill = "Recalling conversation history"
 
-    pirate_agent.update_episodic_memory(user_query, response, feedback_score, feedback_text)
+    pirate_agent.update_episodic_memory(
+        user_query, response, feedback_score, feedback_text
+    )
     pirate_agent.update_procedural_memory(skill, feedback_score, feedback_text)
 
     pirate_agent.save_to_file("agents")
