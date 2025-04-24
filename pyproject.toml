@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "mdformat>=0.7.22",
     "mypy>=1.15.0",
+    "numpy>=2.2.5",
     "openai>=1.72.0",
     "pre-commit>=4.2.0",
     "python-dotenv>=1.1.0",
