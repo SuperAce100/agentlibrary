@@ -61,7 +61,6 @@ def llm_call(
                 "additionalProperties": False,
             }
 
-            # Process definitions
             if "$defs" in schema_dict:
                 processed["$defs"] = {}
                 for def_name, def_schema in schema_dict["$defs"].items():
@@ -170,24 +169,36 @@ def _llm_call_tools(
     try:
         msgs.append(resp.choices[0].message.model_dump())
     except Exception as e:
-        print("Failed to parse response:", resp, msgs)
-        raise ValueError(f"Failed to parse response: {e}")
+        raise ValueError(f"Failed to parse response: {e}, {resp}")
 
     return resp
 
 
-def _get_tool_response(response: ChatCompletion, tools: list[Tool]) -> dict[str, Any]:
-    tool_call = response.choices[0].message.tool_calls[0]
-    tool_name = tool_call.function.name
-    tool_args = json.loads(tool_call.function.arguments)
-    chosen_tool = [tool for tool in tools if tool.name == tool_name][0]
-    tool_result = chosen_tool(**tool_args)
-    return {
-        "role": "tool",
-        "tool_call_id": tool_call.id,
-        "name": tool_name,
-        "content": tool_result,
-    }
+def _get_tool_responses(
+    response: ChatCompletion, tools: list[Tool]
+) -> list[dict[str, Any]]:
+    MAX_TOOL_RESP_LENGTH = 10000
+    tool_responses = []
+
+    for tool_call in response.choices[0].message.tool_calls:
+        tool_name = tool_call.function.name
+        tool_args = json.loads(tool_call.function.arguments)
+        chosen_tool = [tool for tool in tools if tool.name == tool_name][0]
+        tool_result = chosen_tool(**tool_args)
+
+        if len(tool_result) > MAX_TOOL_RESP_LENGTH:
+            tool_result = tool_result[:MAX_TOOL_RESP_LENGTH] + "..."
+
+        tool_responses.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "name": tool_name,
+                "content": tool_result,
+            }
+        )
+
+    return tool_responses
 
 
 def llm_call_with_tools(
@@ -196,7 +207,7 @@ def llm_call_with_tools(
     while True:
         resp = _llm_call_tools(messages, tools, model)
         if resp.choices[0].message.tool_calls is not None:
-            messages.append(_get_tool_response(resp, tools))
+            messages.extend(_get_tool_responses(resp, tools))
         else:
             break
     return messages[-1]["content"]

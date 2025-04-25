@@ -4,6 +4,6 @@
   "description": "An agent that analyzes and interprets biographical data and relationships to create coherent profiles and timelines.",
   "messages": [],
   "tools": [
-    "browser"
+    "browser", "web_search"
   ]
 }

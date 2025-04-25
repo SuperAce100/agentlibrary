@@ -4,6 +4,6 @@
   "description": "An agent specialized in analyzing match data, statistics, and timelines to filter games based on specific card distributions, substitution events, and referee nationality.",
   "messages": [],
   "tools": [
-    "web_search"
+    "web_search", "web_search"
   ]
 }

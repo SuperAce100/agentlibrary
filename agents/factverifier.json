@@ -4,6 +4,6 @@
   "description": "An agent dedicated to verifying facts and cross-referencing data for accuracy and consistency.",
   "messages": [],
   "tools": [
-    "browser"
+    "browser", "web_search"
   ]
 }

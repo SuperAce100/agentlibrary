@@ -4,6 +4,6 @@
   "description": "An agent that specializes in efficiently conducting detailed research on various topics by gathering and synthesizing information from multiple sources.",
   "messages": [],
   "tools": [
-    "browser"
+    "browser", "web_search"
   ]
 }
