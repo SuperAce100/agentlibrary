@@ -1,6 +1,7 @@
 from models.tools.tool import Tool
 from models.tools.browser import browser_tool
 from models.tools.terminal import terminal_tool
+from models.tools.web_search import web_search_tool
 from typing import Dict, Optional
 
 
@@ -41,5 +42,6 @@ tool_registry = ToolRegistry()
 
 tool_registry.register(browser_tool)
 tool_registry.register(terminal_tool)
+tool_registry.register(web_search_tool)
 
-__all__ = ["Tool", "tool_registry", "browser_tool", "terminal_tool"]
+__all__ = ["Tool", "tool_registry"]

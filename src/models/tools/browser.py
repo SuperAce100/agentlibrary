@@ -34,7 +34,7 @@ class BrowserArgs(BaseModel):
 
 browser_tool = Tool(
     name="browser",
-    description="Instruct a browser to perform a web task.",
+    description="Instruct a browser to perform a very simple web task (Find x related to y, etc.)",
     function=_run_browser,
     argument_schema=BrowserArgs,
 )

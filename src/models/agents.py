@@ -71,6 +71,7 @@ class Agent:
             system_prompt=self.system_prompt,
             messages=self.messages[1:],  # skip system prompt
             description=self.description,
+            tools=[tool.name for tool in self.tools],
         )
         file_name = os.path.join(path, f"{self.name.lower().replace(' ', '_')}.json")
         with open(file_name, "w") as f:
