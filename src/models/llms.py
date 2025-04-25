@@ -1,12 +1,11 @@
 import json
-from openai import OpenAI, AsyncOpenAI
+from openai import OpenAI, AsyncOpenAI, ChatCompletion
 from pydantic import BaseModel
 import tiktoken
 from typing import Any
 import os
 import dotenv
-
-from models.tools import Tool
+from models.tools import Tool, browser_tool, terminal_tool
 
 dotenv.load_dotenv()
 
@@ -168,19 +167,24 @@ def _llm_call_tools(
     resp = client.chat.completions.create(
         model=model, tools=[tool.to_openai_tool() for tool in tools], messages=msgs
     )
-    msgs.append(resp.choices[0].message.model_dump())
+    try:
+        msgs.append(resp.choices[0].message.model_dump())
+    except Exception as e:
+        print("Failed to parse response:", resp, msgs)
+        raise ValueError(f"Failed to parse response: {e}")
+
     return resp
 
 
-def _get_tool_response(response: dict[str, Any], tools: list[Tool]) -> dict[str, Any]:
-    tool_call = response["choices"][0]["message"]["tool_calls"][0]
-    tool_name = tool_call["function"]["name"]
-    tool_args = json.loads(tool_call["function"]["arguments"])
+def _get_tool_response(response: ChatCompletion, tools: list[Tool]) -> dict[str, Any]:
+    tool_call = response.choices[0].message.tool_calls[0]
+    tool_name = tool_call.function.name
+    tool_args = json.loads(tool_call.function.arguments)
     chosen_tool = [tool for tool in tools if tool.name == tool_name][0]
-    tool_result = chosen_tool(tool_args)
+    tool_result = chosen_tool(**tool_args)
     return {
         "role": "tool",
-        "tool_call_id": tool_call["id"],
+        "tool_call_id": tool_call.id,
         "name": tool_name,
         "content": tool_result,
     }
@@ -274,6 +278,7 @@ if __name__ == "__main__":
     # ]
     # response = llm_call_messages(messages)
     # print(response)
+
     # class TestOutput(BaseModel):
     #     name: str
     #     value: int
@@ -308,29 +313,30 @@ if __name__ == "__main__":
     class NewsArgs(BaseModel):
         topic: str
 
-    tools = [
-        Tool(
-            name="get_weather",
-            description="Get the weather in a city",
-            function=get_weather,
-            argument_schema=WeatherArgs,
-        ),
-        Tool(
-            name="get_news",
-            description="Get the news about a topic",
-            function=get_news,
-            argument_schema=NewsArgs,
-        ),
-    ]
+    weather_tool = Tool(
+        name="get_weather",
+        description="Get the weather in a city",
+        function=get_weather,
+        argument_schema=WeatherArgs,
+    )
 
+    news_tool = Tool(
+        name="get_news",
+        description="Get the news about a topic",
+        function=get_news,
+        argument_schema=NewsArgs,
+    )
+
+    tools = [browser_tool, terminal_tool]
     messages = [
         {
             "role": "system",
-            "content": "You are a comedian that only responds in haikus.",
+            "content": "You are a helpful assistant that can use tools to answer questions.",
         },
-        {"role": "user", "content": "What is the weather in Stanford?"},
+        {"role": "user", "content": "Tell me about the weather in Stanford"},
     ]
 
     response = llm_call_with_tools(messages, tools)
     print(response)
-    print("\n".join([f"{msg['role']}: {msg['content']}" for msg in messages]))
+
+    # print("\n".join([f"{msg['role']}: {msg['content']}" for msg in messages]))

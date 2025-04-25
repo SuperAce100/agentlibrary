@@ -4,7 +4,7 @@ from langchain_openai import ChatOpenAI
 from browser_use import Agent
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from __init__ import Tool
+from models.tools import Tool
 
 load_dotenv()
 
@@ -23,7 +23,7 @@ def _run_browser(task: str) -> str:
     )
     result = asyncio.run(agent.run())
     if result.is_successful():
-        return result.final_result
+        return result.final_result()
     else:
         return "Failed to complete the task."
 
@@ -40,7 +40,5 @@ browser_tool = Tool(
 )
 
 if __name__ == "__main__":
-    tool_args = BrowserArgs(task="Compare the price of gpt-4o and DeepSeek-V3")
-
-    result = browser_tool(tool_args)
+    result = browser_tool(task="Find the weather in Stanford")
     print(result)

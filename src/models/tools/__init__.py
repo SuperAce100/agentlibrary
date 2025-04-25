@@ -1,6 +1,6 @@
-from tool import Tool
-from browser import browser_tool
-
+from models.tools.tool import Tool
+from models.tools.browser import browser_tool
+from models.tools.terminal import terminal_tool
 from typing import Dict, Optional
 
 
@@ -39,4 +39,4 @@ class ToolRegistry:
 # Global registry instance
 tool_registry = ToolRegistry()
 
-__all__ = ["Tool", "tool_registry", "browser_tool"]
+__all__ = ["Tool", "tool_registry", "browser_tool", "terminal_tool"]

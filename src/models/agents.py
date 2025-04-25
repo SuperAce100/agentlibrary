@@ -5,7 +5,7 @@ from models.llms import (
     text_model,
     llm_call_with_tools,
 )
-from models.tools import Tool, tool_registry
+from models.tools import Tool, tool_registry, browser_tool, terminal_tool
 import asyncio
 from pydantic import BaseModel
 
@@ -44,7 +44,11 @@ class Agent:
             system_prompt=config.system_prompt,
             model=model,
             description=config.description,
-            tools=[tool_registry.get_tool(tool_name) for tool_name in config.tools],
+            tools=[
+                tool
+                for tool_name in config.tools
+                if (tool := tool_registry.get_tool(tool_name))
+            ],
         )
         for message in config.messages:
             agent.pass_context(message["content"], message["role"])
@@ -134,53 +138,23 @@ if __name__ == "__main__":
         tools=[],
     )
 
-    agent2 = Agent.from_config(config)
-    print(agent2.call("Tell me the last thing you said, verbatim."))
-    print(asyncio.run(agent2.call_async("Tell me the first thing you said, verbatim.")))
+    # agent2 = Agent.from_config(config)
+    # print(agent2.call("Tell me the last thing you said, verbatim."))
+    # print(asyncio.run(agent2.call_async("Tell me the first thing you said, verbatim.")))
 
-    agent2.save_to_file("agents")
+    # agent2.save_to_file("agents")
 
-    print("Loading agent from file...")
-    agent3 = Agent.from_file("agents/test1234.json")
-    print(agent3.call("Tell me the last thing you said, verbatim."))
+    # print("Loading agent from file...")
+    # agent3 = Agent.from_file("agents/test1234.json")
+    # print(agent3.call("Tell me the last thing you said, verbatim."))
 
-    def get_weather(city: str) -> str:
-        if city == "Stanford":
-            return "The weather in Stanford is sunny."
-        else:
-            return f"The weather in {city} is cloudy."
+    tool_registry.register(browser_tool)
+    tool_registry.register(terminal_tool)
 
-    class WeatherArgs(BaseModel):
-        city: str
-
-    def get_news(topic: str) -> str:
-        if topic == "Stanford":
-            return "Stanford is doing really great research in AI."
-        else:
-            return f"The news about {topic} is that it is good."
-
-    class NewsArgs(BaseModel):
-        topic: str
-
-    tool_registry.register(
-        Tool(
-            name="get_weather",
-            description="Get the weather in a city",
-            function=get_weather,
-            argument_schema=WeatherArgs,
-        )
-    )
-    tool_registry.register(
-        Tool(
-            name="get_news",
-            description="Get the news about a topic",
-            function=get_news,
-            argument_schema=NewsArgs,
-        )
-    )
-
-    config.tools = ["get_weather", "get_news"]
+    config.tools = ["browser", "terminal"]
 
     agent4 = Agent.from_config(config)
-    print(agent4.call_with_tools("What is the weather in Stanford?"))
-    print(agent4.call_with_tools("What is some cool news about New York?"))
+    print(
+        agent4.call_with_tools("What is the most recent news about the stock market?")
+    )
+    # print(agent4.call_with_tools("What is some cool news about New York?"))
