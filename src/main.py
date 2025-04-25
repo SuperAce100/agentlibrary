@@ -124,6 +124,13 @@ def run(
             feedback_text,
         )
 
+        sub_agent.prompt = sub_agent.update_prompt(
+            sub_agent.prompt,
+            sub_agent.procedural_memory_store,
+        )
+
+        # Update semantic memory if useful data library is found
+
         context_manager.add_context(orchestration_step.agent_name, last_response)
 
         tracer.update_agent_loop(

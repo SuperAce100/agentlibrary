@@ -6,10 +6,15 @@ from openai import OpenAI
 import datetime  # Need datetime for timestamp comparison
 import math  # Need math for exponential decay
 from dotenv import load_dotenv
-# --- Add LLM call import ---
-# Assuming models.py is one level up
-
-from models.llms import text_model, llm_call
+from models.llms import (
+    llm_call,
+    llm_call_messages_async,
+    llm_call_messages,
+    text_model,
+    llm_call_with_tools,
+)
+from openai import OpenAI
+client = OpenAI()
 
 
 load_dotenv()
@@ -23,7 +28,7 @@ class EpisodicMemory(BaseModel):
     # Metadata can include timestamp, feedback_score, feedback_text, source, etc.
     metadata: Optional[Dict[str, Any]] = Field(
         default_factory=dict
-    )  # Use Dict for better typing
+    )  
 
 
 def cosine_similarity(v1: List[float], v2: List[float]) -> float:
@@ -45,20 +50,17 @@ def cosine_similarity(v1: List[float], v2: List[float]) -> float:
 class EpisodicMemoryStore:
     """Manages storage, embedding, and retrieval of episodic memories."""
 
-    def __init__(self, embedding_model: str = "text-embedding-3-small"):
+    def __init__(self):
         self.memories: List[EpisodicMemory] = []
-        self.client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-        )
-        self.embedding_model = embedding_model
+        self.client = OpenAI()
+        self.embedding_model = "text-embedding-3-small"
 
     def _get_embedding(self, text: str) -> List[float]:
-        """Generates embedding for the given text"""
-        text = text.replace("\n", " ")  # OpenAI recommendation
+        text = text.replace("\n", " ")  
         try:
-            response = self.client.embeddings.create(
-                input=[text], model=self.embedding_model
+            response = client.embeddings.create(
+                input=text,
+                model=self.embedding_model
             )
             return response.data[0].embedding
         except Exception as e:
@@ -466,9 +468,52 @@ def update_prompt(
         print(f"Error during LLM call for prompt update: {e}")
         return old_prompt  # Return old prompt on exception
 
+class SemanticMemory(BaseModel):
+    """A single piece of semantic memory."""
+
+    content: str
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict
+    )  
+
+class SemanticMemoryStore:
+    """Manages storage and retrieval of semantic memories."""
+
+    def __init__(self):
+        self.memories: List[SemanticMemory] = []
+        self.embedding_model = "text-embedding-3-small"
+
+    def _get_embedding(self, text:str) -> List[float]:
+        text = text.replace("\n", " ")
+        try:
+            response = client.embeddings.create(
+                input=text,
+                model=self.embedding_model
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            print(f"Error getting embedding: {e}")
+            return []
+
+    def add_memory(self, content:str, metadata:Optional[Dict[str, Any]] = None):
+        """Add a new semantic memory."""
+        memory = SemanticMemory(content=content, metadata=metadata)
+        self.memories.append(memory)
+    
+    def retrieve_memories(self, query:str, top_n:int = 3) -> List[SemanticMemory]:
+        """Retrieve memories based on semantic similarity to the query."""
+        query_embedding = self._get_embedding(query)
+        scored_memories = []
+
+        for mem in self.memories:
+            if mem.embedding and len(mem.embedding) == len(query_embedding):
+                similarity = cosine_similarity(mem.embedding, query_embedding)
+                scored_memories.append((similarity, mem))
+
+        scored_memories.sort(key=lambda x: x[0], reverse=True)
+        return [mem for _, mem in scored_memories[:top_n]]
 
 if __name__ == "__main__":
-
     class TestArgumentSchema(BaseModel):
         x: int
 
