@@ -16,7 +16,7 @@ load_dotenv()
 
 
 class EpisodicMemory(BaseModel):
-    """Represents a single piece of episodic memory."""
+    """A single piece of episodic memory."""
 
     content: str
     embedding: List[float]
@@ -54,7 +54,7 @@ class EpisodicMemoryStore:
         self.embedding_model = embedding_model
 
     def _get_embedding(self, text: str) -> List[float]:
-        """Generates embedding for the given text using OpenAI API."""
+        """Generates embedding for the given text"""
         text = text.replace("\n", " ")  # OpenAI recommendation
         try:
             response = self.client.embeddings.create(
@@ -64,10 +64,6 @@ class EpisodicMemoryStore:
         except Exception as e:
             print(f"Error getting embedding: {e}")
             # Return a zero vector or handle error appropriately
-            # Getting the dimension requires an extra API call or knowing it beforehand
-            # For 'text-embedding-3-small', the dimension is 1536
-            # For 'text-embedding-ada-002', the dimension is 1536
-            # Adjust if using a different model
             embedding_dim = 1536  # Example dimension
             return [0.0] * embedding_dim
 
@@ -89,7 +85,7 @@ class EpisodicMemoryStore:
 
         meta = metadata or {}
 
-        # --- Ensure Timestamp ---
+        # --- Add Timestamp to Metadata---
         if "timestamp" not in meta:
             meta["timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         elif isinstance(meta.get("timestamp"), datetime.datetime):
@@ -106,8 +102,6 @@ class EpisodicMemoryStore:
                     f"Warning: Feedback score {feedback_score} is outside the expected [0, 1] range. Storing as is."
                 )
             meta["feedback_score"] = feedback_score
-        if feedback_text:
-            meta["feedback_text"] = feedback_text
 
         # --- Get Embedding ---
         embedding = self._get_embedding(content)
@@ -131,7 +125,6 @@ class EpisodicMemoryStore:
         self,
         query: str,
         top_n: int = 3,
-        # Use a dictionary for weights for clarity and flexibility
         weights: Dict[str, float] = {"relevance": 0.4, "recency": 0.4, "feedback": 0.2},
         recency_decay_rate: float = 0.01,  # Controls how fast recency score drops (per hour)
         default_feedback_score: float = 0.5,  # Score assigned if feedback is missing
@@ -227,10 +220,7 @@ class EpisodicMemoryStore:
         """Returns the content of all stored memories."""
         return [mem.content for mem in self.memories]
 
-    # --- New: Methods for Persistence ---
     def export_memories(self) -> List[Dict[str, Any]]:
-        """Exports memories to a list of dictionaries suitable for JSON serialization."""
-        # Use Pydantic's TypeAdapter for efficient serialization of the list
         memory_list_adapter = TypeAdapter(List[EpisodicMemory])
         return memory_list_adapter.dump_python(self.memories, mode="json")
 
@@ -267,7 +257,7 @@ def get_competency_label(score: float) -> str:
 
 
 class ProceduralMemory(BaseModel):
-    """Represents a single piece of procedural memory (a skill or flaw)."""
+    """A single piece of procedural memory (a skill or flaw)."""
 
     skill_description: str = Field(
         ...,
@@ -410,10 +400,7 @@ class ProceduralMemoryStore:
 
         return " ".join(summary_parts)
 
-    # --- New: Methods for Persistence ---
     def export_skills(self) -> Dict[str, Dict[str, Any]]:
-        """Exports skills to a dictionary suitable for JSON serialization."""
-        # Use Pydantic's TypeAdapter for the dictionary values
         skill_dict_adapter = TypeAdapter(Dict[str, ProceduralMemory])
         return skill_dict_adapter.dump_python(self.skills, mode="json")
 
@@ -427,7 +414,6 @@ class ProceduralMemoryStore:
             return
 
         try:
-            # Use Pydantic's TypeAdapter for validation and parsing
             skill_dict_adapter = TypeAdapter(Dict[str, ProceduralMemory])
             self.skills = skill_dict_adapter.validate_python(data)
             print(f"Imported {len(self.skills)} procedural skills.")
@@ -439,7 +425,7 @@ class ProceduralMemoryStore:
 def update_prompt(
     old_prompt: str,
     skill_library: ProceduralMemoryStore,
-    model: str = text_model,  # Use the default model from models.models
+    model: str = text_model,  
 ) -> str:
     """
     Uses an LLM to rewrite an agent's system prompt based on its current skills.

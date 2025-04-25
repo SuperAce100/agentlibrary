@@ -104,6 +104,26 @@ def run(
             )
         )
 
+        feedback_score, feedback_text = orchestrator.give_feedback(
+            sub_agent.name, 
+            orchestration_step.instructions,
+            task,
+            last_response,
+        )
+
+        sub_agent.update_episodic_memory(
+            orchestration_step.instructions,
+            last_response,
+            feedback_score,
+            feedback_text,
+        )
+
+        sub_agent.update_procedural_memory(
+            orchestration_step.instructions,
+            feedback_score,
+            feedback_text,
+        )
+
         context_manager.add_context(orchestration_step.agent_name, last_response)
 
         tracer.update_agent_loop(

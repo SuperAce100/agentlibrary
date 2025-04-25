@@ -1,7 +1,8 @@
 import os
 from models.llms import (
-    llm_call_messages,
+    llm_call,
     llm_call_messages_async,
+    llm_call_messages,
     text_model,
     llm_call_with_tools,
 )
@@ -56,26 +57,6 @@ class Agent:
             self.episodic_memory_store.import_memories(initial_episodic_data)
         if initial_procedural_data:
             self.procedural_memory_store.import_skills(initial_procedural_data)
-
-        prompt_skill_key = (
-            f"following instructions from system prompt for {self.name}".lower().strip()
-        )
-        if not self.procedural_memory_store.get_skill(prompt_skill_key):
-            self.procedural_memory_store.add_or_update_skill(
-                skill_description=f"Following instructions from system prompt for {self.name}",
-                new_score=0.6,
-                initial_prompt_source=True,
-                evidence_text=f"Initial System Prompt: '{self.system_prompt[:100]}...'",
-            )
-        if initial_skills:
-            for skill, score in initial_skills.items():
-                if not self.procedural_memory_store.get_skill(skill):
-                    self.procedural_memory_store.add_or_update_skill(
-                        skill_description=skill,
-                        new_score=score,
-                        initial_prompt_source=True,
-                        evidence_text="Provided during agent initialization.",
-                    )
 
     @staticmethod
     def from_config(
@@ -158,8 +139,8 @@ class Agent:
         )
         base_name = self.name.lower().replace(" ", "_")
         config_path = os.path.join(path, f"{base_name}.json")
-        episodic_path = os.path.join(path, f"{base_name}_episodic.json")
-        procedural_path = os.path.join(path, f"{base_name}_procedural.json")
+        episodic_path = os.path.join(path, "episodic", f"{base_name}_episodic.json")
+        procedural_path = os.path.join(path, "procedural", f"{base_name}_procedural.json")
 
         try:
             with open(config_path, "w") as f:
@@ -289,8 +270,6 @@ class Agent:
         evaluated_agent_prompt: str,
         user_input: str,
         agent_response: str,
-        evaluation_criteria: str = "Evaluate based on helpfulness, correctness, adherence to instructions, and overall quality.",
-        model: Optional[str] = None,
     ) -> Tuple[Optional[float], Optional[str]]:
         """
         Returns:
@@ -298,7 +277,7 @@ class Agent:
             - float: The numerical feedback score (0.0-1.0) or None if parsing fails.
             - str: The textual feedback or None if parsing fails.
         """
-        evaluator_model = model or self.model
+        evaluator_model = text_model
         print(
             f"\n--- Agent '{self.name}' evaluating response from '{evaluated_agent_name}' using {evaluator_model} ---"
         )
@@ -317,8 +296,6 @@ class Agent:
         User Input: "{user_input}"
         Agent Response: "{agent_response}"
 
-        **Evaluation Criteria:** {evaluation_criteria}
-
         **Instructions:**
         1. Analyze the agent's response in the context of the user input and the agent's system prompt.
         2. Provide concise, constructive textual feedback explaining your assessment based on the criteria.
@@ -328,16 +305,9 @@ class Agent:
         Feedback: [Your textual feedback]
         """
 
-        messages = [
-            {
-                "role": "system",
-                "content": "You are an impartial and analytical AI evaluator.",
-            },
-            {"role": "user", "content": feedback_prompt},
-        ]
 
         try:
-            llm_response = llm_call_messages(messages, model=evaluator_model)
+            llm_response = llm_call(feedback_prompt, self.model)
 
             score_match = re.search(r"Score:\s*([0-9.]+)", llm_response, re.IGNORECASE)
             feedback_match = re.search(
