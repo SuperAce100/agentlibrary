@@ -1,5 +1,7 @@
+from tool import Tool
+from browser import browser_tool
+
 from typing import Dict, Optional
-from models.tools import Tool
 
 
 class ToolRegistry:
@@ -36,3 +38,5 @@ class ToolRegistry:
 
 # Global registry instance
 tool_registry = ToolRegistry()
+
+__all__ = ["Tool", "tool_registry", "browser_tool"]

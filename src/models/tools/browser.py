@@ -1,0 +1,46 @@
+import os
+import asyncio
+from langchain_openai import ChatOpenAI
+from browser_use import Agent
+from dotenv import load_dotenv
+from pydantic import BaseModel
+from __init__ import Tool
+
+load_dotenv()
+
+
+llm = ChatOpenAI(
+    model="openai/gpt-4.1-mini",
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.getenv("OPENROUTER_API_KEY"),
+)
+
+
+def _run_browser(task: str) -> str:
+    agent = Agent(
+        task=task,
+        llm=llm,
+    )
+    result = asyncio.run(agent.run())
+    if result.is_successful():
+        return result.final_result
+    else:
+        return "Failed to complete the task."
+
+
+class BrowserArgs(BaseModel):
+    task: str
+
+
+browser_tool = Tool(
+    name="browser",
+    description="Instruct a browser to perform a web task.",
+    function=_run_browser,
+    argument_schema=BrowserArgs,
+)
+
+if __name__ == "__main__":
+    tool_args = BrowserArgs(task="Compare the price of gpt-4o and DeepSeek-V3")
+
+    result = browser_tool(tool_args)
+    print(result)

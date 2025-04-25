@@ -5,10 +5,9 @@ from models.llms import (
     text_model,
     llm_call_with_tools,
 )
-from models.tools import Tool
+from models.tools import Tool, tool_registry
 import asyncio
 from pydantic import BaseModel
-from models.tool_registry import tool_registry
 
 
 class AgentConfig(BaseModel):
