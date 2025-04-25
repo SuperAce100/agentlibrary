@@ -1,6 +1,10 @@
+from concurrent.futures import ThreadPoolExecutor
 import os
+
+from pydantic import BaseModel
 from models.agents import Agent, AgentConfig
 from models.llms import llm_call
+from models.tools import tool_registry
 
 prompt_engineering_system_prompt = """
 You are an expert prompt engineer specializing in creating precise, effective system prompts. When given a name and description of an agent, craft a comprehensive system prompt that will guide an LLM to embody this agent's role perfectly. You will also be given a justification for the agent, which is the exact quote from the task description that inspired the overall orchestrator to create this agent.
@@ -31,6 +35,21 @@ When crafting the prompt:
 Return only the actual system prompt text, with no labels, formatting instructions, or meta-commentary.
 """
 
+pick_tools_prompt = """
+Pick the best tools for the {name} based on the description and justification.
+
+Here is the list of available tools:
+{tools}
+
+Here is the justification for the agent:
+{justification}
+
+Here is the description of the agent:
+{description}
+
+Provide your response as a list of exactly matching tool names.
+"""
+
 
 def generate_system_prompt(name: str, description: str, justification: str) -> str:
     user_prompt = f"""
@@ -45,6 +64,25 @@ def generate_system_prompt(name: str, description: str, justification: str) -> s
     return str(prompt_engineer_response)
 
 
+class PickToolsResponse(BaseModel):
+    tools: list[str]
+
+
+def pick_tools(name: str, description: str, justification: str) -> list[str]:
+    enum_tools = "\n".join(
+        [f"- {tool.name}: {tool.description}" for tool in tool_registry.get_all_tools()]
+    )
+    return llm_call(
+        prompt=pick_tools_prompt.format(
+            name=name,
+            description=description,
+            tools=enum_tools,
+            justification=justification,
+        ),
+        response_format=PickToolsResponse,
+    ).tools
+
+
 def create_sub_agent(
     name: str, description: str, justification: str, path: str = "agents"
 ) -> Agent:
@@ -53,9 +91,14 @@ def create_sub_agent(
             os.path.join(path, f"{name.lower().replace(' ', '_')}.json")
         )
 
-    system_prompt = generate_system_prompt(name, description, justification)
+    with ThreadPoolExecutor() as executor:
+        system_prompt, tools = executor.map(
+            lambda f: f(name, description, justification),
+            [generate_system_prompt, pick_tools],
+        )
+
     config = AgentConfig(
-        name=name, system_prompt=system_prompt, description=description
+        name=name, system_prompt=system_prompt, description=description, tools=tools
     )
     agent = Agent.from_config(config)
     agent.save_to_file(path)

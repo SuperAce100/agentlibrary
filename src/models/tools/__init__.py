@@ -39,4 +39,7 @@ class ToolRegistry:
 # Global registry instance
 tool_registry = ToolRegistry()
 
+tool_registry.register(browser_tool)
+tool_registry.register(terminal_tool)
+
 __all__ = ["Tool", "tool_registry", "browser_tool", "terminal_tool"]
