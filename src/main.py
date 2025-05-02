@@ -4,6 +4,7 @@ from decomposition import decompose_task
 from orchestrator import Orchestrator
 from sub_agent_creation import create_sub_agent
 import argparse
+from models.agents import Agent 
 import concurrent.futures
 
 from utils.tracing import Tracer
@@ -96,8 +97,8 @@ def run(
             for context_name in orchestration_step.context
         )
 
-        sub_agent = agent_registry[orchestration_step.agent_name]
-        last_response = sub_agent.call(
+        sub_agent: Agent = agent_registry[orchestration_step.agent_name]
+        last_response = sub_agent.call_with_tools(
             sub_agent_prompt.format(
                 orchestrator_instructions=orchestration_step.instructions,
                 context=relevant_context,

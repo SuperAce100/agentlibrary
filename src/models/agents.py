@@ -17,7 +17,9 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any, Tuple, List
 import json
 import re
-from models.tool_registry import tool_registry
+from models.tools import Tool, tool_registry, browser_tool, terminal_tool
+import asyncio
+from pydantic import BaseModel
 
 
 class AgentConfig(BaseModel):
@@ -79,6 +81,11 @@ class Agent:
             initial_procedural_data=initial_procedural_data,
             initial_semantic_data=initial_semantic_data,
             tools=[tool_registry.get_tool(tool_name) for tool_name in config.tools],
+            tools=[
+                tool
+                for tool_name in config.tools
+                if (tool := tool_registry.get_tool(tool_name))
+            ],
         )
         for message in config.messages:
             agent.pass_context(message["content"], message["role"])
@@ -150,6 +157,7 @@ class Agent:
             system_prompt=self.system_prompt,
             messages=self.messages[1:],
             description=self.description,
+            tools=[tool.name for tool in self.tools],
         )
         base_name = self.name.lower().replace(" ", "_")
         config_path = os.path.join(path, f"{base_name}.json")
@@ -415,58 +423,42 @@ if __name__ == "__main__":
     agent_filename_base = agent_name.lower().replace(" ", "_")
     agent_config_file = f"agents/{agent_filename_base}.json"
 
-    try:
-        print(f"\n--- Attempting to load agent from {agent_config_file} ---")
-        pirate_agent = Agent.from_file(agent_config_file)
-        print(f"--- Successfully loaded agent: {pirate_agent.name} ---")
-        print(
-            f"Existing Episodic Memories: {len(pirate_agent.episodic_memory_store.memories)}"
-        )
-        print(
-            f"Existing Procedural Skills: {len(pirate_agent.procedural_memory_store.skills)}"
-        )
-        print("Existing Skills Summary:")
-        print(pirate_agent.get_procedural_summary())
-
-    except FileNotFoundError:
-        print(f"--- Agent file not found. Creating new agent: {agent_name} ---")
-        pirate_agent = Agent(
-            name=agent_name,
-            system_prompt="Ye be talkin' to a persistent pirate assistant, savvy?",
-            model=text_model,
-        )
-        pirate_agent.save_to_file("agents")
-
-    user_query = "What treasures have we discussed before?"
-    print(f"\nUser to {pirate_agent.name}: {user_query}")
-
-    retrieved = pirate_agent.retrieve_episodic_memories(user_query, top_n=2)
-    if retrieved:
-        print(f"[{pirate_agent.name} recalls:]")
-        for mem in retrieved:
-            print(f"  - {mem.content[:80]}...")
-
-    response = pirate_agent.call(user_query)
-    print(f"{pirate_agent.name}: {response}")
-
-    print("\n--- Updating memory and saving state ---")
-    feedback_score = random.uniform(0.5, 0.9)
-    feedback_text = f"Recalled context with score {feedback_score:.2f}"
-    skill = "Recalling conversation history"
-
-    pirate_agent.update_episodic_memory(
-        user_query, response, feedback_score, feedback_text
+    config = AgentConfig(
+        name="Test1234",
+        system_prompt="You are a helpful assistant that speaks in haikus.",
+        description="A test agent that speaks in haikus",
+        messages=[
+            {"content": "Generate a haiku about a cat.", "role": "user"},
+            {
+                "content": "The cat is a good cat.\nThe cat is a bad cat.\nThe cat is a cat.",
+                "role": "assistant",
+            },
+            {"content": "Generate a haiku about a dog.", "role": "user"},
+            {
+                "content": "The dog is a good dog.\nThe dog is a bad dog.\nThe dog is a dog.",
+                "role": "assistant",
+            },
+        ],
+        tools=[],
     )
-    pirate_agent.update_procedural_memory(skill, feedback_score, feedback_text)
 
-    pirate_agent.save_to_file("agents")
-    print("--- Agent state saved. Run script again to test loading. ---")
+    # agent2 = Agent.from_config(config)
+    # print(agent2.call("Tell me the last thing you said, verbatim."))
+    # print(asyncio.run(agent2.call_async("Tell me the first thing you said, verbatim.")))
 
-    print(f"\n--- Final State for {pirate_agent.name} (this run) ---")
-    print(pirate_agent)
-    print("\nProcedural Memory Summary:")
-    print(pirate_agent.get_procedural_summary())
-    print("\nEpisodic Memories:")
-    for mem in pirate_agent.episodic_memory_store.memories:
-        print(f"- {mem.content} (Score: {mem.metadata.get('feedback_score', 'N/A')})")
-    print("------------------------------------")
+    # agent2.save_to_file("agents")
+
+    # print("Loading agent from file...")
+    # agent3 = Agent.from_file("agents/test1234.json")
+    # print(agent3.call("Tell me the last thing you said, verbatim."))
+
+    tool_registry.register(browser_tool)
+    tool_registry.register(terminal_tool)
+
+    config.tools = ["browser", "terminal"]
+
+    agent4 = Agent.from_config(config)
+    print(
+        agent4.call_with_tools("What is the most recent news about the stock market?")
+    )
+    # print(agent4.call_with_tools("What is some cool news about New York?"))

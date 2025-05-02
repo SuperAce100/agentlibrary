@@ -39,6 +39,7 @@ If you pick agents from the list of available agents, make sure their names are 
 
 def decompose_task(task: str, library_path: str = "agents") -> Decomposition:
     available_agents = []
+    os.makedirs(library_path, exist_ok=True)
     for file in os.listdir(library_path):
         if file.endswith(".json"):
             with open(os.path.join(library_path, file), "r") as f:
