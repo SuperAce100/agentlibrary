@@ -11,6 +11,8 @@ from models.memory import (
     ProceduralMemoryStore,
     EpisodicMemory,
     EpisodicMemoryStore,
+    SemanticMemory,
+    SemanticMemoryStore,
 )
 import random
 from pydantic import BaseModel
@@ -80,7 +82,6 @@ class Agent:
             initial_episodic_data=initial_episodic_data,
             initial_procedural_data=initial_procedural_data,
             initial_semantic_data=initial_semantic_data,
-            tools=[tool_registry.get_tool(tool_name) for tool_name in config.tools],
             tools=[
                 tool
                 for tool_name in config.tools
@@ -151,6 +152,15 @@ class Agent:
     def save_to_file(self, path: str = "agents") -> None:
         """Save the agent's configuration and memory state to files."""
         os.makedirs(path, exist_ok=True)
+        
+        # Create subdirectories for memory types if they don't exist
+        episodic_dir = os.path.join(path, "episodic")
+        procedural_dir = os.path.join(path, "procedural")
+        semantic_dir = os.path.join(path, "semantic")
+        
+        os.makedirs(episodic_dir, exist_ok=True)
+        os.makedirs(procedural_dir, exist_ok=True)
+        os.makedirs(semantic_dir, exist_ok=True)
 
         config = AgentConfig(
             name=self.name,
@@ -161,8 +171,8 @@ class Agent:
         )
         base_name = self.name.lower().replace(" ", "_")
         config_path = os.path.join(path, f"{base_name}.json")
-        episodic_path = os.path.join(path, "episodic", f"{base_name}_episodic.json")
-        procedural_path = os.path.join(path, "procedural", f"{base_name}_procedural.json")
+        episodic_path = os.path.join(episodic_dir, f"{base_name}_episodic.json")
+        procedural_path = os.path.join(procedural_dir, f"{base_name}_procedural.json")
 
         try:
             with open(config_path, "w") as f:

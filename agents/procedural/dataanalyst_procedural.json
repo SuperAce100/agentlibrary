@@ -1,0 +1,11 @@
+{
+  "acting as dataanalyst": {
+    "skill_description": "Acting as DataAnalyst",
+    "competency_score": 0.5,
+    "competency_label": "average",
+    "last_updated": "2025-05-02T07:40:45.188781Z",
+    "evidence": [
+      "[2025-05-02T07:40:45.188781+00:00] Initial skill creation"
+    ]
+  }
+}
