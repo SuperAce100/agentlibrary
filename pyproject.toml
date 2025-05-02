@@ -5,6 +5,9 @@ description = "Dynamic sub-agent creation and orchestration"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "browser-use==0.1.40",
+    "docker>=7.1.0",
+    "exa-py>=1.12.1",
     "mdformat>=0.7.22",
     "mypy>=1.15.0",
     "openai>=1.72.0",
@@ -18,7 +21,7 @@ dependencies = [
 strict = false
 follow_imports = "silent"
 ignore_missing_imports = true
-disable_error_code = ["misc"]
+disable_error_code = ["misc", "union-attr"]
 
 [[tool.mypy.overrides]]
 module = "pydantic.*"
