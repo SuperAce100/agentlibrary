@@ -81,8 +81,9 @@ async def evaluate_coverage(
     client: OpenAI
 ) -> Tuple[int, int, List[str]]:
     """Evaluate how well the metrics cover the interaction's aspects."""
-    prompt = """Given this interaction and these metrics, identify:
-    1. How many aspects of the interaction are covered by the metrics
+    prompt = """ 
+    Given this interaction and these metrics, identify:
+    1. How many aspects of the interaction are covered by the metrics. Be very harsh and meticulous about uncovering aspects of the interaction that may have been missed.
     2. The total number of notable aspects in the interaction
     3. List any uncovered aspects
     
@@ -115,6 +116,10 @@ async def iterative_metric_creation(interaction: dict) -> List[InteractionMetric
     # Initial aspects
     aspects = await analyze_interaction(interaction, client)
     
+    # Track iterations
+    iteration = 0
+    max_iterations = 3  # Ensure at least a few iterations
+    
     while True:
         print(f"Current coverage rate: {curr_coverage_rate}")
         print(f"Previous coverage rate: {prev_coverage_rate}")
@@ -131,15 +136,21 @@ async def iterative_metric_creation(interaction: dict) -> List[InteractionMetric
             interaction, curr_metrics, client
         )
         
-        curr_coverage_rate = covered / total
+        curr_coverage_rate = covered / total if total > 0 else 0
+        iteration += 1
         
-        # Break if coverage isn't improving
-        if curr_coverage_rate <= prev_coverage_rate:
+        # Break if coverage is perfect AND we've done minimum iterations
+        # OR if coverage isn't improving AND we've done minimum iterations
+        # OR if there are no more uncovered aspects
+        if ((curr_coverage_rate >= 0.95 and iteration >= max_iterations) or
+            (curr_coverage_rate <= prev_coverage_rate and iteration >= max_iterations) or
+            not uncovered_aspects):
             break
             
         aspects = uncovered_aspects
     
-    return prev_metrics
+    # Return the best metrics we found
+    return curr_metrics if curr_coverage_rate > prev_coverage_rate else prev_metrics
 
 def save_metrics(metrics: List[InteractionMetric], path: str) -> None:
     """Save metrics to a file."""

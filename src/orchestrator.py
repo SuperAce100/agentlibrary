@@ -123,8 +123,11 @@ class Orchestrator(Agent):
         
         {metrics_text}
         
-        For each metric, provide a score from 0.0 to 1.0 and brief justification.
-        Then provide an overall score and comprehensive feedback.
+        For each metric, provide a score and brief justification. 
+        For responses that do not meet the expectations of the metric, give a 0.
+        For responses that do meet, but do not exceed, the expectations of the metric, give a 0.5.
+        For responses that far exceed the expectations of the metric, give a 1.
+        Then provide an average of all the scores and comprehensive feedback.
         
         Format your response exactly as:
         
