@@ -11,6 +11,7 @@ import json
 
 from utils.tracing import Tracer
 from utils.prompts import sub_agent_prompt
+from openai import OpenAI, AsyncOpenAI
 
 
 def run(
@@ -23,6 +24,7 @@ def run(
     Run the multi-agent system
     """
     tracer = Tracer(task, trace_path, verbose)
+    print("Initializing...")
 
     tracer.update_progress("Decomposing task...")
 
@@ -138,9 +140,6 @@ def run(
             sub_agent.procedural_memory_store,
         )
         
-        # Update the agent's system prompt in memory
-        sub_agent.system_prompt = updated_system_prompt
-
         # Save agent memory after each interaction to persist memory updates
         # But don't save the full agent state to avoid message accumulation
         try:

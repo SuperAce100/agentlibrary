@@ -118,7 +118,6 @@ async def iterative_metric_creation(interaction: dict) -> List[InteractionMetric
     
     # Track iterations
     iteration = 0
-    max_iterations = 3  # Ensure at least a few iterations
     
     while True:
         print(f"Current coverage rate: {curr_coverage_rate}")
@@ -136,21 +135,17 @@ async def iterative_metric_creation(interaction: dict) -> List[InteractionMetric
             interaction, curr_metrics, client
         )
         
-        curr_coverage_rate = covered / total if total > 0 else 0
-        iteration += 1
+        curr_coverage_rate = covered / total
+
         
-        # Break if coverage is perfect AND we've done minimum iterations
-        # OR if coverage isn't improving AND we've done minimum iterations
-        # OR if there are no more uncovered aspects
-        if ((curr_coverage_rate >= 0.95 and iteration >= max_iterations) or
-            (curr_coverage_rate <= prev_coverage_rate and iteration >= max_iterations) or
-            not uncovered_aspects):
+                # Break if coverage isn't improving
+        if curr_coverage_rate <= prev_coverage_rate:
             break
             
         aspects = uncovered_aspects
     
     # Return the best metrics we found
-    return curr_metrics if curr_coverage_rate > prev_coverage_rate else prev_metrics
+    return prev_metrics
 
 def save_metrics(metrics: List[InteractionMetric], path: str) -> None:
     """Save metrics to a file."""
