@@ -1,5 +1,5 @@
 import json
-from openai import OpenAI, AsyncOpenAI, ChatCompletion
+from openai import OpenAI, AsyncOpenAI, ChatCompletion, AzureOpenAI, AsyncAzureOpenAI
 from pydantic import BaseModel
 import tiktoken
 from typing import Any
@@ -9,16 +9,24 @@ from models.tools import Tool, browser_tool, terminal_tool
 
 dotenv.load_dotenv()
 
-text_model = "openai/gpt-4.1-mini"
 
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY"),
+endpoint = "https://zyan-m9hhi31s-eastus2.cognitiveservices.azure.com/"
+deployment = "gpt-4.1-mini-250414-19384" # "gpt-4.1-250414-19384"
+
+text_model = deployment
+subscription_key = os.getenv("AZURE_OPENAI_API_KEY")
+api_version = "2024-12-01-preview"
+
+client = AzureOpenAI(
+    api_version=api_version,
+    azure_endpoint=endpoint,
+    api_key=subscription_key,
 )
 
-async_client = AsyncOpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY"),
+async_client = AsyncAzureOpenAI(
+    api_version=api_version,
+    azure_endpoint=endpoint,
+    api_key=subscription_key,
 )
 
 

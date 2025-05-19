@@ -28,7 +28,7 @@ class Orchestrator(Agent):
         super().__init__(
             name="Orchestrator",
             system_prompt=orchestrator_system_prompt,
-            model="openai/o4-mini",
+            # model="openai/o4-mini",
             # model="openai/gpt-4.1-mini",
             description="The orchestrator in charge of everything",
         )

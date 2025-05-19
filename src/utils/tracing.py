@@ -17,6 +17,7 @@ class Tracer:
 
         self.verbose = verbose
         self.steps: dict[str, str | list[dict[str, str]]] = {
+            "task": self.task,
             "progress": "",
             "agent_loop": [],
         }
@@ -27,7 +28,6 @@ class Tracer:
             + "_"
             + llm_call(
                 f"Please give a very short but descriptive name (30 characters or less) for the following task: {self.task} in snake case",
-                model="openai/gpt-4.1-nano",
             )
             + ".json"
         )

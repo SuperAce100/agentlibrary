@@ -133,12 +133,6 @@ def run(
             feedback_score,
             feedback_text,
         )
-
-        # Update the agent's system prompt based on procedural memory
-        updated_system_prompt = sub_agent.update_prompt(
-            sub_agent.system_prompt,
-            sub_agent.procedural_memory_store,
-        )
         
         # Save agent memory after each interaction to persist memory updates
         # But don't save the full agent state to avoid message accumulation
@@ -156,22 +150,6 @@ def run(
             with open(procedural_path, "w") as f:
                 json.dump(procedural_data, f, indent=2)
                 
-            # Update the system prompt in the agent's config file
-            try:
-                with open(config_path, "r") as f:
-                    config_data = json.load(f)
-                
-                # Update the system prompt in the config
-                config_data["system_prompt"] = updated_system_prompt
-                
-                # Write the updated config back to the file
-                with open(config_path, "w") as f:
-                    json.dump(config_data, f, indent=2)
-                    
-                print(f"Updated system prompt in config file: {config_path}")
-            except Exception as e:
-                print(f"Error updating system prompt in config file {config_path}: {e}")
-                
         except Exception as e:
             print(f"Error saving memory for agent {sub_agent.name}: {e}")
 
@@ -186,6 +164,28 @@ def run(
 
     tracer.update_progress("Compiling final response...")
     final_response = orchestrator.compile_final_response(task)
+
+    # Update the agent's system prompt based on procedural memory
+    updated_system_prompt = sub_agent.update_prompt(
+        sub_agent.system_prompt,
+        sub_agent.procedural_memory_store,
+    )
+
+    # Update the system prompt in the agent's config file
+    try:
+        with open(config_path, "r") as f:
+            config_data = json.load(f)
+        
+        # Update the system prompt in the config
+        config_data["system_prompt"] = updated_system_prompt
+        
+        # Write the updated config back to the file
+        with open(config_path, "w") as f:
+            json.dump(config_data, f, indent=2)
+            
+        print(f"Updated system prompt in config file: {config_path}")
+    except Exception as e:
+        print(f"Error updating system prompt in config file {config_path}: {e}")
 
     tracer.update_progress("Done!")
     tracer.trace(final_response, "final_response")

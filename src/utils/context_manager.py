@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from models import llm_call
+from models.llms import llm_call, deployment
 
 
 class ContextEntry(BaseModel):
@@ -15,7 +15,7 @@ class ContextManager:
     def _name_entry(self, creator: str, content: str) -> str:
         return llm_call(
             f"Please give a descriptive name for the following context entry in the following format: `name_should_look_like_this`: {content}",
-            model="openai/gpt-4.1-nano",
+            model=deployment,
         )
 
     def add_context(self, creator: str, content: str):
