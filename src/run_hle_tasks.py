@@ -23,14 +23,30 @@ def main():
     ds = load_dataset("cais/hle", split="test")
     print(f"Loaded {len(ds)} tasks from the dataset")
 
-    results_directory = "../.data/HLE_results/HLE"
+    results_directory = ".data/HLE_results/HLE"
     
     # Create results directory if it doesn't exist
     os.makedirs(results_directory, exist_ok=True)
+    print(f"Results directory absolute path: {os.path.abspath(results_directory)}")
+    print(f"Directory exists after creation: {os.path.exists(results_directory)}")
     
     # Initialize score tracking
     total_score = 0
     completed_tasks = 0
+    
+    # Initialize results log file
+    results_log_path = os.path.join(results_directory, "results_log.json")
+    
+    # Load existing results if the file exists
+    if os.path.exists(results_log_path):
+        try:
+            with open(results_log_path, 'r') as f:
+                results_log = json.load(f)
+        except json.JSONDecodeError:
+            # If the file exists but is corrupted, start fresh
+            results_log = {"correct_answers": [], "total_correct": 0}
+    else:
+        results_log = {"correct_answers": [], "total_correct": 0}
     
     # Process each task in the dataset using a thread pool for parallelization
     def process_task(task_info):
@@ -62,13 +78,15 @@ def main():
             task = json.dumps(task)
         
         try:
-            final_response = run(task, False, results_directory)
+            final_response = run(task, 100, verbose=False, trace_path=results_directory)
             score_value = evaluate_final_response(final_response, answer)
             
             # Convert the raw score to a dictionary with the expected structure
             result = {
                 'completed': True,
-                'score': int(score_value.strip()) if score_value.strip() in ['0', '1'] else 0
+                'score': int(score_value.strip()) if score_value.strip() in ['0', '1'] else 0,
+                'task_id': task_id,
+                'question': task[:200] + "..." if len(task) > 200 else task  # Include truncated question
             }
             
             return result
@@ -82,7 +100,7 @@ def main():
                 f.write(f"Question: {task}\n")
                 f.write(f"Correct answer: {answer}\n")
             
-            return {'completed': False, 'score': 0}
+            return {'completed': False, 'score': 0, 'task_id': task_id}
         
         except subprocess.CalledProcessError as e:
             print(f"Error running task: {e}")
@@ -100,7 +118,7 @@ def main():
                 f.write(f"Question: {task}\n")
                 f.write(f"Correct answer: {answer}\n")
             
-            return {'completed': False, 'score': 0}
+            return {'completed': False, 'score': 0, 'task_id': task_id}
         
         print("-" * 80)
         return final_response
@@ -115,9 +133,22 @@ def main():
         # Process results as they complete
         for future in tqdm(futures, desc="Waiting for tasks to complete"):
             result = future.result()
-            if result and result['completed']:
+            if result and result.get('completed'):
                 total_score += result['score']
                 completed_tasks += 1
+                
+                # Log correct answers to the results log
+                if result['score'] == 1:
+                    results_log["correct_answers"].append({
+                        "task_id": result['task_id'],
+                        "question": result.get('question', 'Question not available')
+                    })
+                    results_log["total_correct"] += 1
+                    
+                    # Update the log file after each correct answer
+                    with open(results_log_path, 'w') as f:
+                        json.dump(results_log, f, indent=2)
+                    print(f"File exists after writing: {os.path.exists(results_log_path)}")
     
     # Print final score summary
     if completed_tasks > 0:
@@ -125,6 +156,18 @@ def main():
     else:
         print("\nNo tasks were successfully completed and evaluated.")
     
+    # Final update to the results log
+    results_log["completion_time"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    results_log["final_score"] = {
+        "total_correct": total_score,
+        "total_completed": completed_tasks,
+        "accuracy": total_score/completed_tasks if completed_tasks > 0 else 0
+    }
+    
+    with open(results_log_path, 'w') as f:
+        json.dump(results_log, f, indent=2)
+    
+    print(f"\nResults log saved to {results_log_path}")
     print("\nAll tasks completed!")
 
 if __name__ == "__main__":

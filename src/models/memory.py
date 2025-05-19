@@ -14,6 +14,7 @@ from models.llms import (
     llm_call_with_tools,
 )
 from openai import OpenAI
+import json
 client = OpenAI()
 
 
@@ -137,36 +138,57 @@ class EpisodicMemoryStore:
             f"Added memory: '{content[:50]}...' (Timestamp: {meta['timestamp']}{feedback_info})"
         )
 
-    def retrieve_memories(
+    def load_memories(self, sub_agent: str) -> bool:
+        """Load memories for a specific sub-agent into self.memories."""
+        memory_file_path = f"agents/episodic/{sub_agent}_episodic.json"
+        
+        try:
+            if os.path.exists(memory_file_path):
+                with open(memory_file_path, 'r') as f:
+                    memory_data = json.load(f)
+                    memory_list_adapter = TypeAdapter(List[EpisodicMemory])
+                    self.memories = memory_list_adapter.validate_python(memory_data)
+                    print(f"Loaded {len(self.memories)} memories for sub-agent '{sub_agent}'")
+                    return True
+            else:
+                print(f"Warning: No memory file found for sub-agent '{sub_agent}' at {memory_file_path}")
+                self.memories = []
+                return False
+        except Exception as e:
+            print(f"Error loading memories for sub-agent '{sub_agent}': {e}")
+            self.memories = []
+            return False
+
+    def retrieve_episodic_memories(
         self,
         query: str,
+        sub_agent: str,
         top_n: int = 3,
-        weights: Dict[str, float] = {"relevance": 0.4, "recency": 0.4, "feedback": 0.2},
         recency_decay_rate: float = 0.01,  # Controls how fast recency score drops (per hour)
-        default_feedback_score: float = 0.5,  # Score assigned if feedback is missing
     ) -> List[EpisodicMemory]:
         """
-        Retrieves the top_n most relevant memories based on a weighted combination of
-        semantic similarity (relevance), recency, and feedback score.
+        Retrieves the top_n most relevant memories for a specific sub-agent based on a 
+        weighted combination of semantic similarity (relevance), recency, and feedback score.
+        
+        Args:
+            query: The search query to find relevant memories
+            sub_agent: Name of the sub-agent whose memories to search
+            top_n: Number of memories to return (or fewer if not enough relevant memories exist)
+            recency_decay_rate: Controls how quickly recency score decays with time
+            
+        Returns:
+            A list of the most relevant memories (may be empty or contain fewer than top_n items)
         """
+        self.load_memories(sub_agent)
+        
+        # Define weights for combining scores
+        weights = {"relevance": 0.34, "recency": 0.33, "feedback": 0.33}
+        relevance_weight = weights["relevance"]
+        recency_weight = weights["recency"]
+        feedback_weight = weights["feedback"]
+        
         if not query or not self.memories:
             return []
-
-        # --- Validate Weights ---
-        total_weight = sum(weights.values())
-        if not math.isclose(total_weight, 1.0):
-            # Normalize weights if they don't sum to 1, or raise an error
-            print(f"Warning: Weights {weights} do not sum to 1. Normalizing.")
-            if total_weight == 0:
-                total_weight = 1  # Avoid division by zero
-            weights = {k: v / total_weight for k, v in weights.items()}
-        if any(w < 0 for w in weights.values()):
-            raise ValueError("Weights cannot be negative.")
-
-        # Extract individual weights, defaulting to 0 if missing
-        relevance_weight = weights.get("relevance", 0.0)
-        recency_weight = weights.get("recency", 0.0)
-        feedback_weight = weights.get("feedback", 0.0)
 
         # --- Get Query Embedding ---
         query_embedding = self._get_embedding(query)
@@ -184,7 +206,9 @@ class EpisodicMemoryStore:
             if mem.embedding and len(mem.embedding) == len(query_embedding):
                 relevance_score = cosine_similarity(
                     query_embedding, mem.embedding
-                )  # Already scaled 0-1
+                )  
+                if relevance_score < 0.7:
+                    continue
             else:
                 print(
                     f"Warning: Skipping memory due to invalid embedding: {mem.content[:30]}..."
@@ -212,7 +236,9 @@ class EpisodicMemoryStore:
 
             # --- 3. Feedback Score ---
             # Assumes score in metadata is already normalized [0, 1]
-            feedback_score = mem.metadata.get("feedback_score", default_feedback_score)
+            feedback_score = mem.metadata.get("feedback_score")
+            if feedback_score is None:
+                continue
             # Ensure score is clamped [0, 1] even if stored incorrectly or default is outside range
             feedback_score = max(0.0, min(1.0, float(feedback_score)))
 
@@ -226,11 +252,13 @@ class EpisodicMemoryStore:
 
         # --- Sort and Return ---
         if not scored_memories:
-            print("Warning: Could not calculate scores for any stored memories.")
+            print(f"Warning: No relevant memories found for query: '{query[:30]}...'")
             return []
 
         scored_memories.sort(key=lambda x: x[0], reverse=True)
-        return [mem for _, mem in scored_memories[:top_n]]
+        result = [mem for _, mem in scored_memories[:top_n]]
+        print(f"Retrieved {len(result)} memories (requested {top_n})")
+        return result
 
     def get_all_memories_content(self) -> List[str]:
         """Returns the content of all stored memories."""
@@ -573,15 +601,15 @@ if __name__ == "__main__":
 
     print("\nRetrieval (Balanced Weights):")
     weights_balanced = {"relevance": 0.4, "recency": 0.4, "feedback": 0.2}
-    memories_balanced = episodic_memory_store.retrieve_memories(
-        query, top_n=3, weights=weights_balanced
+    memories_balanced = episodic_memory_store.retrieve_episodic_memories(
+        query, "user", top_n=3, weights=weights_balanced
     )
     for (
         score,
         mem,
     ) in (
         memories_balanced
-    ):  # Note: retrieve_memories returns List[EpisodicMemory], not scores directly
+    ):  # Note: retrieve_episodic_memories returns List[EpisodicMemory], not scores directly
         print(
             f"- Content: {mem.content} | Score: {mem.metadata.get('feedback_score', 'N/A')} | Timestamp: {mem.metadata.get('timestamp')}"
         )
@@ -590,8 +618,8 @@ if __name__ == "__main__":
 
     print("\nRetrieval (Prioritizing Feedback):")
     weights_feedback = {"relevance": 0.2, "recency": 0.2, "feedback": 0.6}
-    memories_feedback = episodic_memory_store.retrieve_memories(
-        query, top_n=3, weights=weights_feedback
+    memories_feedback = episodic_memory_store.retrieve_episodic_memories(
+        query, "user", top_n=3, weights=weights_feedback
     )
     for mem in memories_feedback:
         print(
@@ -602,8 +630,8 @@ if __name__ == "__main__":
 
     print("\nRetrieval (Prioritizing Relevance):")
     weights_relevance = {"relevance": 0.7, "recency": 0.2, "feedback": 0.1}
-    memories_relevance = episodic_memory_store.retrieve_memories(
-        query, top_n=3, weights=weights_relevance
+    memories_relevance = episodic_memory_store.retrieve_episodic_memories(
+        query, "user", top_n=3, weights=weights_relevance
     )
     for mem in memories_relevance:
         print(

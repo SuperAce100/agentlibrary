@@ -100,12 +100,21 @@ def run(
             context_manager.get_context(context_name)
             for context_name in orchestration_step.context
         )
+        memories = sub_agent.retrieve_episodic_memories(orchestrator_instructions, last_agent_name)
+        if memories:
+            relevant_memories = "\n\n".join([
+                f"Memory {i+1}:\n{mem.content}" 
+                for i, mem in enumerate(memories)
+            ])
+        else:
+            relevant_memories = "No relevant memories found."
 
         sub_agent: Agent = agent_registry[orchestration_step.agent_name]
         last_response = sub_agent.call_with_tools(
             sub_agent_prompt.format(
                 orchestrator_instructions=orchestration_step.instructions,
                 context=relevant_context,
+                memories = relevant_memories,
             )
         )
 
@@ -129,13 +138,11 @@ def run(
             feedback_text,
         )
         
-        # Save agent memory after each interaction to persist memory updates
-        # But don't save the full agent state to avoid message accumulation
         try:
             base_name = sub_agent.name.lower().replace(" ", "_")
-            episodic_path = os.path.join("agents/episodic", f"{base_name}_episodic.json")
-            procedural_path = os.path.join("agents/procedural", f"{base_name}_procedural.json")
-            config_path = os.path.join("agents", f"{base_name}.json")
+            episodic_path = os.path.join("./agents/episodic", f"{base_name}_episodic.json")
+            procedural_path = os.path.join("./agents/procedural", f"{base_name}_procedural.json")
+            config_path = os.path.join("./agents", f"{base_name}.json")
             
             episodic_data = sub_agent.episodic_memory_store.export_memories()
             with open(episodic_path, "w") as f:
@@ -145,8 +152,24 @@ def run(
             with open(procedural_path, "w") as f:
                 json.dump(procedural_data, f, indent=2)
                 
+            # Update system prompt and save to config file
+            updated_system_prompt = sub_agent.update_prompt(
+                sub_agent.system_prompt,
+                sub_agent.procedural_memory_store,
+            )
+            
+            with open(config_path, "r") as f:
+                config_data = json.load(f)
+            
+            config_data["system_prompt"] = updated_system_prompt
+            
+            with open(config_path, "w") as f:
+                json.dump(config_data, f, indent=2)
+                
+            print(f"Updated system prompt in config file: {config_path}")
+                
         except Exception as e:
-            print(f"Error saving memory for agent {sub_agent.name}: {e}")
+            print(f"Error saving memory or updating system prompt for agent {sub_agent.name}: {e}")
 
         # Update semantic memory if useful data library is found
 
@@ -159,28 +182,6 @@ def run(
 
     tracer.update_progress("Compiling final response...")
     final_response = orchestrator.compile_final_response(task)
-
-    # Update the agent's system prompt based on procedural memory
-    updated_system_prompt = sub_agent.update_prompt(
-        sub_agent.system_prompt,
-        sub_agent.procedural_memory_store,
-    )
-
-    # Update the system prompt in the agent's config file
-    try:
-        with open(config_path, "r") as f:
-            config_data = json.load(f)
-        
-        # Update the system prompt in the config
-        config_data["system_prompt"] = updated_system_prompt
-        
-        # Write the updated config back to the file
-        with open(config_path, "w") as f:
-            json.dump(config_data, f, indent=2)
-            
-        print(f"Updated system prompt in config file: {config_path}")
-    except Exception as e:
-        print(f"Error updating system prompt in config file {config_path}: {e}")
 
     tracer.update_progress("Done!")
     tracer.trace(final_response, "final_response")
