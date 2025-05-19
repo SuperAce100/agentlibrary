@@ -3,8 +3,8 @@ import numpy as np
 from typing import Any, Optional, List, Dict
 from pydantic import BaseModel, Field, validator, TypeAdapter
 from openai import OpenAI
-import datetime  # Need datetime for timestamp comparison
-import math  # Need math for exponential decay
+import datetime  
+import math 
 from dotenv import load_dotenv
 from models.llms import (
     llm_call,
@@ -56,10 +56,24 @@ class EpisodicMemoryStore:
         self.embedding_model = "text-embedding-3-small"
 
     def _get_embedding(self, text: str) -> List[float]:
-        text = text.replace("\n", " ")  
+        text = text.replace("\n", " ") 
+        def summarize_text(text: str) -> str:
+            summarize_prompt = f"""
+            You are a helpful assistant that summarizes an agent's response.
+            You must write the summary in first-person, as if you are the agent. 
+            For example: "I searched the web to find the most recent news on Earth's rarest trees. 
+            I was able to find 8 relevant news articles that discussed climate change and the impact of deforestation on the decline of these trees. 
+            I returned the information to the orchestrator."
+            Your summary must be concise and to the point
+            Summarize the following text in 70 words or less:
+            {text}
+            """
+            llm_response = llm_call(summarize_prompt, self.model)
+            return llm_response
+        summary = summarize_text(text)
         try:
             response = client.embeddings.create(
-                input=text,
+                input=summary,
                 model=self.embedding_model
             )
             return response.data[0].embedding

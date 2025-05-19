@@ -42,11 +42,6 @@ def run(
     )
     tracer.update_progress("Creating sub-agents...")
 
-    # Ensure memory directories exist
-    os.makedirs("agents/episodic", exist_ok=True)
-    os.makedirs("agents/procedural", exist_ok=True)
-    os.makedirs("agents/semantic", exist_ok=True)
-
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(
