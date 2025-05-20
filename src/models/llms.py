@@ -1,5 +1,5 @@
 import json
-from openai import OpenAI, AsyncOpenAI, ChatCompletion, AzureOpenAI, AsyncAzureOpenAI
+from openai import ChatCompletion, AzureOpenAI, AsyncAzureOpenAI
 from pydantic import BaseModel
 import tiktoken
 from typing import Any
@@ -11,7 +11,7 @@ dotenv.load_dotenv()
 
 
 endpoint = "https://zyan-m9hhi31s-eastus2.cognitiveservices.azure.com/"
-deployment = "gpt-4.1-mini-250414-19384" # "gpt-4.1-250414-19384"
+deployment = "gpt-4.1-mini-250414-19384"  # "gpt-4.1-250414-19384"
 
 text_model = deployment
 subscription_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -120,7 +120,7 @@ def llm_call(
 
 
 def llm_call_messages(
-    messages: list[dict[str, str]],
+    messages: list[dict[str, Any]],
     response_format: BaseModel = None,
     model: str = text_model,
 ) -> str | BaseModel:
@@ -166,7 +166,7 @@ def llm_call_messages(
 
 
 def _llm_call_tools(
-    msgs: list[dict[str, str]], tools: list[Tool], model: str = text_model
+    msgs: list[dict[str, Any]], tools: list[Tool], model: str = text_model
 ) -> Any:
     """
     Simple LLM call with tools. No structured response.
@@ -210,7 +210,7 @@ def _get_tool_responses(
 
 
 def llm_call_with_tools(
-    messages: list[dict[str, str]], tools: list[Tool], model: str = text_model
+    messages: list[dict[str, Any]], tools: list[Tool], model: str = text_model
 ) -> str:
     while True:
         resp = _llm_call_tools(messages, tools, model)
@@ -222,7 +222,7 @@ def llm_call_with_tools(
 
 
 async def llm_call_messages_async(
-    messages: list[dict[str, str]],
+    messages: list[dict[str, Any]],
     response_format: BaseModel = None,
     model: str = text_model,
 ) -> str | BaseModel:
@@ -268,7 +268,7 @@ async def llm_call_messages_async(
 
 
 def num_tokens_from_messages(
-    messages: list[dict[str, str]], model: str = text_model
+    messages: list[dict[str, Any]], model: str = text_model
 ) -> int:
     """Returns the number of tokens used by a list of messages."""
     try:
@@ -280,7 +280,22 @@ def num_tokens_from_messages(
     for message in messages:
         num_tokens += 4
         for key, value in message.items():
-            num_tokens += len(encoding.encode(value))
+            if key == "content":
+                if isinstance(value, str):
+                    num_tokens += len(encoding.encode(value))
+                elif isinstance(value, list):
+                    for content_part in value:
+                        if (
+                            isinstance(content_part, dict)
+                            and content_part.get("type") == "text"
+                        ):
+                            num_tokens += len(
+                                encoding.encode(content_part.get("text", ""))
+                            )
+            else:
+                if isinstance(value, str):
+                    num_tokens += len(encoding.encode(value))
+
             if key == "name":
                 num_tokens += -1
     num_tokens += 2

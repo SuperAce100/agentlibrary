@@ -59,6 +59,8 @@ To refresh your memory, here is the task:
 {task}
 </task>
 
+{image_info_section}
+
 Here's a list of all the context available to you to pass to the sub-agents. These are the past responses from sub-agents that you've already seen. When you pass it, make sure to pass the exact names listed below:
 
 <context>

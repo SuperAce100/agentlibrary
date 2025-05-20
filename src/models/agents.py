@@ -14,21 +14,18 @@ from models.memory import (
     SemanticMemory,
     SemanticMemoryStore,
 )
-import random
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, Tuple, List
 import json
 import re
-from models.tools import Tool, tool_registry, browser_tool, terminal_tool
-import asyncio
-from pydantic import BaseModel
+from models.tools import tool_registry, browser_tool, terminal_tool
 
 
 class AgentConfig(BaseModel):
     name: str
     system_prompt: str
     description: str
-    messages: list[dict[str, str]] = []
+    messages: list[dict[str, Any]] = []
     tools: list[str] = []
 
 
@@ -48,7 +45,7 @@ class Agent:
         self.name: str = name
         self.system_prompt: str = system_prompt
         self.model: str = model
-        self.messages: list[dict[str, str]] = [
+        self.messages: list[dict[str, Any]] = [
             {"role": "system", "content": self.system_prompt}
         ]
         self.tools: list[Tool] = tools
@@ -63,8 +60,6 @@ class Agent:
             self.episodic_memory_store.import_memories(initial_episodic_data)
         if initial_procedural_data:
             self.procedural_memory_store.import_skills(initial_procedural_data)
-        if initial_semantic_data:
-            self.semantic_memory_store.import_memories(initial_semantic_data)
 
     @staticmethod
     def from_config(
@@ -142,22 +137,23 @@ class Agent:
             print(f"Loaded semantic memory from: {semantic_path}")
         except FileNotFoundError:
             print(f"Semantic memory file not found (agent may be new): {semantic_path}")
-            
+
         return Agent.from_config(
             config,
             initial_episodic_data=loaded_episodic_data,
             initial_procedural_data=loaded_procedural_data,
+            initial_semantic_data=loaded_semantic_data,
         )
 
     def save_to_file(self, path: str = "agents") -> None:
         """Save the agent's configuration and memory state to files."""
         os.makedirs(path, exist_ok=True)
-        
+
         # Create subdirectories for memory types if they don't exist
         episodic_dir = os.path.join(path, "episodic")
         procedural_dir = os.path.join(path, "procedural")
         semantic_dir = os.path.join(path, "semantic")
-        
+
         os.makedirs(episodic_dir, exist_ok=True)
         os.makedirs(procedural_dir, exist_ok=True)
         os.makedirs(semantic_dir, exist_ok=True)
@@ -197,14 +193,16 @@ class Agent:
         except Exception as e:
             print(f"Error saving procedural memory to {procedural_path}: {e}")
 
-    def pass_context(self, context: str, role: str = "user") -> None:
+    def pass_context(self, context: Any, role: str = "user") -> None:
         self.messages.append({"role": role, "content": context})
 
     def call(self, prompt: str) -> str:
         self.messages.append({"role": "user", "content": prompt})
         response = llm_call_messages(self.messages, model=self.model)
-        self.messages.append({"role": "assistant", "content": response})
-        return str(response)
+        # Ensure response is string, as no response_format is used here
+        response_str = str(response)
+        self.messages.append({"role": "assistant", "content": response_str})
+        return response_str
 
     def call_structured_output(self, prompt: str, schema: BaseModel) -> BaseModel:
         self.messages.append({"role": "user", "content": prompt})
@@ -214,17 +212,60 @@ class Agent:
         self.messages.append({"role": "assistant", "content": str(response)})
         return schema.model_validate(response)
 
-    def call_with_tools(self, prompt: str) -> str:
-        self.messages.append({"role": "user", "content": prompt})
-        response = llm_call_with_tools(self.messages, self.tools, model=self.model)
-        self.messages.append({"role": "assistant", "content": response})
-        return str(response)
+    def call_with_tools(
+        self, prompt_text: str, image_base64_list: list[str] | None = None
+    ) -> str:
+        """
+        Call the LLM with the current message history, a new prompt (text + images as base64 strings), and tools.
+        Handles message construction for multimodal inputs.
+        """
+        current_messages = list(self.messages)
+
+        user_message_content: list[dict[str, Any]] = [
+            {"type": "text", "text": prompt_text}
+        ]
+
+        if image_base64_list:
+            for base64_image_content in image_base64_list:
+                if base64_image_content:
+                    user_message_content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": base64_image_content,
+                                "detail": "auto",
+                            },
+                        }
+                    )
+
+        current_messages.append({"role": "user", "content": user_message_content})
+
+        response_text = llm_call_with_tools(
+            messages=current_messages, tools=self.tools, model=self.model
+        )
+
+        self.messages.append(
+            {
+                "role": "user",
+                "content": prompt_text
+                + (
+                    f" [with {len(image_base64_list)} images as base64 data]"
+                    if image_base64_list
+                    else ""
+                ),
+            }
+        )
+        self.messages.append({"role": "assistant", "content": response_text})
+
+        return response_text
 
     async def call_async(self, prompt: str) -> str:
         self.messages.append({"role": "user", "content": prompt})
         response = await llm_call_messages_async(self.messages, model=self.model)
-        self.messages.append({"role": "assistant", "content": response})
-        return str(response)
+        # Ensure response is string, as no response_format is used here
+        response_str = str(response)
+        self.messages.append({"role": "assistant", "content": response_str})
+        return response_str
 
     def update_episodic_memory(
         self,
@@ -268,11 +309,11 @@ class Agent:
         print(
             f"--- Procedural memory updated for Agent {self.name} regarding '{skill_description}' ---"
         )
-    
+
     def update_prompt(
         self,
         old_prompt: str,
-        skill_library: ProceduralMemoryStore, 
+        skill_library: ProceduralMemoryStore,
     ) -> str:
         """
         Args:
@@ -304,7 +345,9 @@ class Agent:
         prompt = f"Old System Prompt: {old_prompt}\n\nSkill Summary: {skill_summary}"
 
         try:
-            new_prompt = llm_call(prompt=prompt, system_prompt=meta_prompt, model=self.model)
+            new_prompt = llm_call(
+                prompt=prompt, system_prompt=meta_prompt, model=self.model
+            )
             return new_prompt
         except Exception as e:
             print(f"Error during LLM call for prompt update: {e}")
@@ -313,26 +356,25 @@ class Agent:
     def get_procedural_summary(self) -> str:
         """Returns the agent's self-assessment summary."""
         return self.procedural_memory_store.get_summary()
-    
-    def update_semantic_memory(self, data: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+
+    def update_semantic_memory(
+        self, data: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
         self.semantic_memory_store.add_memory(content=data, metadata=metadata)
         print(f"--- Semantic memory updated for Agent {self.name} ---")
-        
-    def retrieve_semantic_memories(self, query: str, top_n: int = 3) -> List[SemanticMemory]:
+
+    def retrieve_semantic_memories(
+        self, query: str, top_n: int = 3
+    ) -> List[SemanticMemory]:
         """Retrieves relevant memories from this agent's semantic store."""
         return self.semantic_memory_store.retrieve_memories(query=query, top_n=top_n)
 
     def retrieve_episodic_memories(
         self, query: str, top_n: int = 3, weights: Optional[Dict[str, float]] = None
-        ) -> List[EpisodicMemory]:
+    ) -> List[EpisodicMemory]:
         """Retrieves relevant memories from this agent's episodic store."""
-        effective_weights = weights or {
-            "relevance": 0.4,
-            "recency": 0.4,
-            "feedback": 0.2,
-        }
-        return self.episodic_memory_store.retrieve_memories(
-            query=query, top_n=top_n, weights=effective_weights
+        return self.episodic_memory_store.retrieve_episodic_memories(
+            query=query, sub_agent=self.name, top_n=top_n
         )
 
     def __str__(self) -> str:
@@ -385,7 +427,6 @@ class Agent:
         Score: [Your numerical score, e.g., 0.85]
         Feedback: [Your textual feedback]
         """
-
 
         try:
             llm_response = llm_call(feedback_prompt, self.model)
