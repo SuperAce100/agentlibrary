@@ -31,6 +31,7 @@ def run(
     verbose: bool = False,
     trace_path: str | None = None,
     image_inputs: list[str] | None = None,  # Expects a list of base64 encoded strings
+    extend_final_system_prompt: str | None = None,
 ) -> str:
     """
     Run the multi-agent system. `image_inputs` should be a list of base64 encoded strings.
@@ -265,7 +266,9 @@ def run(
         )
 
     tracer.update_progress("Compiling final response...")
-    final_response = orchestrator.compile_final_response(task)
+    final_response = orchestrator.compile_final_response(
+        task, extend_final_system_prompt=extend_final_system_prompt
+    )
 
     tracer.update_progress("Done!")
     tracer.trace(final_response, "final_response")

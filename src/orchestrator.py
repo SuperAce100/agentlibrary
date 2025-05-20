@@ -104,8 +104,16 @@ class Orchestrator(Agent):
 
         return orchestration_step_result
 
-    def compile_final_response(self, task: str) -> str:
-        return self.call(orchestrator_final_response_prompt.format(task=task))
+    def compile_final_response(
+        self, task: str, extend_final_system_prompt: str | None = None
+    ) -> str:
+        if extend_final_system_prompt:
+            return self.call(
+                orchestrator_final_response_prompt.format(task=task)
+                + ("IMPORTANT: " + extend_final_system_prompt)
+            )
+        else:
+            return self.call(orchestrator_final_response_prompt.format(task=task))
 
     def give_feedback(
         self,

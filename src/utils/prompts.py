@@ -87,7 +87,7 @@ Here's what {sub_agent_name} has for you:
 """
 
 orchestrator_final_response_prompt = """
-Here is the task you've been asked to solve. Follow instructions in the task precisely to provide a final response. DO NOT include any other text in your response:
+Here is the task you've been asked to solve. Follow instructions in the task precisely to provide a final response. DO NOT include any other text in your response. Provide as concise of an answer as possible, with as few tokens as possible. If you got input in a specific format in the task, respond in that exact same way in the output.
 
 <task>
 {task}
