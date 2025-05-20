@@ -110,9 +110,10 @@ class Agent:
         try:
             with open(episodic_path, "r") as f:
                 loaded_episodic_data = json.load(f)
-            print(f"Loaded episodic memory from: {episodic_path}")
+            # print(f"Loaded episodic memory from: {episodic_path}")
         except FileNotFoundError:
-            print(f"Episodic memory file not found (agent may be new): {episodic_path}")
+            # print(f"Episodic memory file not found (agent may be new): {episodic_path}")
+            pass
         except Exception as e:
             print(f"Error reading or parsing episodic memory file {episodic_path}: {e}")
 
@@ -120,11 +121,12 @@ class Agent:
         try:
             with open(procedural_path, "r") as f:
                 loaded_procedural_data = json.load(f)
-            print(f"Loaded procedural memory from: {procedural_path}")
+            # print(f"Loaded procedural memory from: {procedural_path}")
         except FileNotFoundError:
-            print(
-                f"Procedural memory file not found (agent may be new): {procedural_path}"
-            )
+            # print(
+            #     f"Procedural memory file not found (agent may be new): {procedural_path}"
+            # )
+            pass
         except Exception as e:
             print(
                 f"Error reading or parsing procedural memory file {procedural_path}: {e}"
@@ -134,9 +136,10 @@ class Agent:
         try:
             with open(semantic_path, "r") as f:
                 loaded_semantic_data = json.load(f)
-            print(f"Loaded semantic memory from: {semantic_path}")
+            # print(f"Loaded semantic memory from: {semantic_path}")
         except FileNotFoundError:
-            print(f"Semantic memory file not found (agent may be new): {semantic_path}")
+            # print(f"Semantic memory file not found (agent may be new): {semantic_path}")
+            pass
 
         return Agent.from_config(
             config,
@@ -173,25 +176,28 @@ class Agent:
         try:
             with open(config_path, "w") as f:
                 f.write(config.model_dump_json(indent=2))
-            print(f"Agent config saved to: {config_path}")
+            # print(f"Agent config saved to: {config_path}")
         except Exception as e:
             print(f"Error saving agent config to {config_path}: {e}")
+            pass
 
         try:
             episodic_data = self.episodic_memory_store.export_memories()
             with open(episodic_path, "w") as f:
                 json.dump(episodic_data, f, indent=2)
-            print(f"Episodic memory saved to: {episodic_path}")
+            # print(f"Episodic memory saved to: {episodic_path}")
         except Exception as e:
             print(f"Error saving episodic memory to {episodic_path}: {e}")
+            pass
 
         try:
             procedural_data = self.procedural_memory_store.export_skills()
             with open(procedural_path, "w") as f:
                 json.dump(procedural_data, f, indent=2)
-            print(f"Procedural memory saved to: {procedural_path}")
+            # print(f"Procedural memory saved to: {procedural_path}")
         except Exception as e:
             print(f"Error saving procedural memory to {procedural_path}: {e}")
+            pass
 
     def pass_context(self, context: Any, role: str = "user") -> None:
         self.messages.append({"role": role, "content": context})
@@ -288,7 +294,7 @@ class Agent:
             feedback_score=feedback_score,
             feedback_text=feedback_text,
         )
-        print(f"--- Episodic memory updated for Agent {self.name} ---")
+        # print(f"--- Episodic memory updated for Agent {self.name} ---")
 
     def update_procedural_memory(
         self,
@@ -306,9 +312,9 @@ class Agent:
             evidence_text=feedback_text
             or f"Feedback received regarding '{skill_description}'.",
         )
-        print(
-            f"--- Procedural memory updated for Agent {self.name} regarding '{skill_description}' ---"
-        )
+        # print(
+        #     f"--- Procedural memory updated for Agent {self.name} regarding '{skill_description}' ---"
+        # )
 
     def update_prompt(
         self,
@@ -325,7 +331,8 @@ class Agent:
         """
         skill_summary = skill_library.get_summary(include_average=True)
         if not skill_summary or "no specific skills" in skill_summary:
-            print("No significant skills found to update prompt.")
+            # print("No significant skills found to update prompt.")
+            pass
             return old_prompt  # No skills to base update on
 
         # Meta-prompt instructing the LLM how to rewrite the prompt
@@ -350,7 +357,8 @@ class Agent:
             )
             return new_prompt
         except Exception as e:
-            print(f"Error during LLM call for prompt update: {e}")
+            # print(f"Error during LLM call for prompt update: {e}")
+            pass
             return old_prompt  # Return old prompt on exception
 
     def get_procedural_summary(self) -> str:
@@ -361,7 +369,7 @@ class Agent:
         self, data: str, metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         self.semantic_memory_store.add_memory(content=data, metadata=metadata)
-        print(f"--- Semantic memory updated for Agent {self.name} ---")
+        # print(f"--- Semantic memory updated for Agent {self.name} ---")
 
     def retrieve_semantic_memories(
         self, query: str, top_n: int = 3
@@ -401,9 +409,9 @@ class Agent:
             - str: The textual feedback or None if parsing fails.
         """
         evaluator_model = text_model
-        print(
-            f"\n--- Agent '{self.name}' evaluating response from '{evaluated_agent_name}' using {evaluator_model} ---"
-        )
+        # print(
+        #     f"\n--- Agent '{self.name}' evaluating response from '{evaluated_agent_name}' using {evaluator_model} ---"
+        # )
 
         feedback_prompt = f"""
         You are an impartial evaluator assessing an AI agent's performance.
@@ -444,28 +452,30 @@ class Agent:
                     score = float(score_match.group(1))
                     score = max(0.0, min(1.0, score))
                 except ValueError:
-                    print("Warning: Could not parse score from LLM feedback.")
-                    score = None
+                    # print("Warning: Could not parse score from LLM feedback.")
+                    pass
 
             if feedback_match:
                 feedback_text = feedback_match.group(1).strip()
             else:
-                print("Warning: Could not parse feedback text from LLM feedback.")
+                # print("Warning: Could not parse feedback text from LLM feedback.")
+                pass
                 if not score_match and llm_response:
                     feedback_text = llm_response.strip()
 
             if score is not None or feedback_text is not None:
-                print(f"Generated Feedback: Score={score}, Text='{feedback_text}...'")
+                # print(f"Generated Feedback: Score={score}, Text='{feedback_text}...'")
                 return score, feedback_text
             else:
-                print(
-                    "Error: Failed to parse both score and feedback from LLM response."
-                )
-                print(f"LLM Raw Response:\n{llm_response}")
+                # print(
+                #     "Error: Failed to parse both score and feedback from LLM response."
+                # )
+                # print(f"LLM Raw Response:\n{llm_response}")
                 return None, "Error: Failed to parse feedback from LLM."
 
         except Exception as e:
-            print(f"Error during LLM call for feedback generation: {e}")
+            # print(f"Error during LLM call for feedback generation: {e}")
+            pass
             return None, f"Error generating feedback: {e}"
 
 

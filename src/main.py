@@ -99,12 +99,16 @@ def run(
             for desc in sub_agent_descriptions
         ]
         sub_agents = []
-        for future in tqdm(
-            concurrent.futures.as_completed(futures),
-            total=len(futures),
-            desc="Creating sub-agents",
-        ):
-            sub_agents.append(future.result())
+        if verbose:
+            for future in tqdm(
+                concurrent.futures.as_completed(futures),
+                total=len(futures),
+                desc="Creating sub-agents",
+            ):
+                sub_agents.append(future.result())
+        else:
+            for future in futures:
+                sub_agents.append(future.result())
 
     tracer.trace(
         "\n".join(
@@ -297,15 +301,17 @@ def main() -> None:
     image_input_paths = args.image_inputs
     base64_encoded_images: list[str] = []
     if image_input_paths:
-        print(f"Encoding {len(image_input_paths)} image(s) to base64...")
+        if verbose:
+            print(f"Encoding {len(image_input_paths)} image(s) to base64...")
         for path in image_input_paths:
             encoded_img = encode_image_to_base64(path)
             if encoded_img:
                 base64_encoded_images.append(encoded_img)
             else:
-                print(
-                    f"Warning: Could not encode image at path {path}. It will be skipped."
-                )
+                if verbose:
+                    print(
+                        f"Warning: Could not encode image at path {path}. It will be skipped."
+                    )
 
     result = run(
         task,

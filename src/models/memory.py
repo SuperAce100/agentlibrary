@@ -72,7 +72,7 @@ class EpisodicMemoryStore:
             )
             return response.data[0].embedding
         except Exception as e:
-            print(f"Error getting embedding: {e}")
+            # print(f"Error getting embedding: {e}")
             # Return a zero vector or handle error appropriately
             embedding_dim = 1536  # Example dimension
             return [0.0] * embedding_dim
@@ -90,7 +90,7 @@ class EpisodicMemoryStore:
         Assumes feedback_score is normalized (e.g., 0.0 to 1.0).
         """
         if not content:
-            print("Warning: Attempted to add empty memory content.")
+            # print("Warning: Attempted to add empty memory content.")
             return
 
         meta = metadata or {}
@@ -108,18 +108,20 @@ class EpisodicMemoryStore:
         if feedback_score is not None:
             # Optional: Add validation/normalization for the score here if needed
             if not (0.0 <= feedback_score <= 1.0):
-                print(
-                    f"Warning: Feedback score {feedback_score} is outside the expected [0, 1] range. Storing as is."
-                )
+                # print(
+                #     f"Warning: Feedback score {feedback_score} is outside the expected [0, 1] range. Storing as is."
+                # )
+                pass
             meta["feedback_score"] = feedback_score
 
         # --- Get Embedding ---
         embedding = self._get_embedding(content)
         if not embedding or not isinstance(embedding, list) or len(embedding) == 0:
-            print(
-                f"Warning: Failed to generate valid embedding for content: '{content[:50]}...'"
-            )
-            return
+            # print(
+            #     f"Warning: Failed to generate valid embedding for content: '{content[:50]}...'"
+            # )
+            pass
+        return
 
         # --- Create and Store Memory ---
         memory = EpisodicMemory(content=content, embedding=embedding, metadata=meta)
@@ -127,9 +129,9 @@ class EpisodicMemoryStore:
         feedback_info = (
             f" | Score: {feedback_score}" if feedback_score is not None else ""
         )
-        print(
-            f"Added memory: '{content[:50]}...' (Timestamp: {meta['timestamp']}{feedback_info})"
-        )
+        # print(
+        #     f"Added memory: '{content[:50]}...' (Timestamp: {meta['timestamp']}{feedback_info})"
+        # )
 
     def load_memories(self, sub_agent: str) -> bool:
         """Load memories for a specific sub-agent into self.memories."""

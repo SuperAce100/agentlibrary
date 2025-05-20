@@ -104,7 +104,9 @@ def main(args):
     else:
         predictions = {}
 
-    results = asyncio.run(attempt_all(questions))
+    # results = asyncio.run(attempt_all(questions))
+    with ThreadPoolExecutor(max_workers=args.num_workers) as executor:
+        results = list(executor.map(lambda q: asyncio.run(attempt_question(q)), questions))
 
     # You can rerun this script multiple times if there are failed API calls
     for result in results:

@@ -142,8 +142,8 @@ async def iterative_metric_creation(interaction: dict) -> List[InteractionMetric
     aspects = await analyze_interaction(interaction, client)
 
     while True:
-        print(f"Current coverage rate: {curr_coverage_rate}")
-        print(f"Previous coverage rate: {prev_coverage_rate}")
+        # print(f"Current coverage rate: {curr_coverage_rate}")
+        # print(f"Previous coverage rate: {prev_coverage_rate}")
 
         prev_metrics = curr_metrics
         prev_coverage_rate = curr_coverage_rate
