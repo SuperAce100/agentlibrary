@@ -11,7 +11,7 @@ dotenv.load_dotenv()
 
 
 endpoint = "https://zyan-m9hhi31s-eastus2.cognitiveservices.azure.com/"
-deployment = "gpt-4.1-mini-250414-19384"  # "gpt-4.1-250414-19384"
+deployment =  "gpt-4.1-250414-19384" # "gpt-4.1-mini-250414-19384" 
 
 text_model = deployment
 subscription_key = os.getenv("AZURE_OPENAI_API_KEY")

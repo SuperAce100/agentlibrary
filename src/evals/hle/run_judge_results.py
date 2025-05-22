@@ -7,11 +7,26 @@ import asyncio
 import numpy as np
 from typing import Literal
 from pydantic import BaseModel
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, AsyncAzureOpenAI
 from tqdm.asyncio import tqdm_asyncio
 from datasets import load_dataset
 
-client = AsyncOpenAI(timeout=300.0, max_retries=1)
+# client = AsyncOpenAI(timeout=300.0, max_retries=1)
+from dotenv import load_dotenv
+
+load_dotenv()
+
+endpoint = "https://zyan-m9hhi31s-eastus2.cognitiveservices.azure.com/"
+deployment = "gpt-4.1-250414-19384"  # "gpt-4.1-mini-250414-19384"  #  "o3-mini-250414-19384"
+
+subscription_key = os.getenv("AZURE_OPENAI_API_KEY")
+api_version = "2024-12-01-preview"
+
+client = AsyncAzureOpenAI(
+    api_version=api_version,
+    azure_endpoint=endpoint,
+    api_key=subscription_key,
+)
 
 JUDGE_PROMPT = """Judge whether the following [response] to [question] is correct or not based on the precise and unambiguous [correct_answer] below.
 
@@ -104,7 +119,8 @@ def calib_err(confidence, correct, p="2", beta=100):
     confidence = confidence[idxs]
     correct = correct[idxs]
     bins = [[i * beta, (i + 1) * beta] for i in range(len(confidence) // beta)]
-    bins[-1] = [bins[-1][0], len(confidence)]
+    if bins:  # Only modify if bins exist
+        bins[-1] = [bins[-1][0], len(confidence)]
 
     cerr = 0
     total_examples = len(confidence)

@@ -37,7 +37,7 @@ def run(
     Run the multi-agent system. `image_inputs` should be a list of base64 encoded strings.
     """
     tracer = Tracer(task, trace_path, verbose)
-    print("Initializing...")
+    # print("Initializing...")
 
     # Store the initial base64 encoded images for lookup by index
     task_base64_image_store: list[str] = (
@@ -178,9 +178,10 @@ def run(
                             task_base64_image_store[img_index]
                         )
                     else:
-                        print(
-                            f"Warning: Orchestrator requested invalid image index {img_index}. Max index is {len(task_base64_image_store) - 1}. Skipping."
-                        )
+                        if verbose:
+                            print(
+                                f"Warning: Orchestrator requested invalid image index {img_index}. Max index is {len(task_base64_image_store) - 1}. Skipping."
+                            )
                 if (
                     not resolved_images_for_agent
                 ):  # If all indices were invalid or list became empty
@@ -253,7 +254,8 @@ def run(
             with open(config_path, "w") as f:
                 json.dump(config_data, f, indent=2)
 
-            print(f"Updated system prompt in config file: {config_path}")
+            if verbose:
+                print(f"Updated system prompt in config file: {config_path}")
 
         except Exception as e:
             print(

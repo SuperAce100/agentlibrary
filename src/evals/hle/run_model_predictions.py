@@ -3,9 +3,12 @@ import json
 import argparse
 import asyncio
 from datasets import load_dataset
+from concurrent.futures import ThreadPoolExecutor
 
 # from openai import AsyncOpenAI
-from tqdm.asyncio import tqdm_asyncio
+# from tqdm.asyncio import tqdm_asyncio
+from tqdm import tqdm
+
 
 from main import run
 
@@ -35,8 +38,8 @@ def format_message(question):
     ]
     return messages
 
-
-async def attempt_question(question):
+# used to be
+def attempt_question(question):
     # messages = format_message(question)
     try:
         # response = await client.chat.completions.create(
@@ -70,17 +73,17 @@ async def attempt_question(question):
     return question["id"], content, tokens
 
 
-async def attempt_all(questions):
-    async def bound_func(question):
-        async with semaphore:
-            content = await attempt_question(question)
-            return content
+# async def attempt_all(questions):
+#     async def bound_func(question):
+#         async with semaphore:
+#             content = await attempt_question(question)
+#             return content
 
-    semaphore = asyncio.Semaphore(args.num_workers)
-    async with semaphore:
-        tasks = [bound_func(q) for q in questions]
-        results = await tqdm_asyncio.gather(*tasks)
-    return results
+#     semaphore = asyncio.Semaphore(args.num_workers)
+#     async with semaphore:
+#         tasks = [bound_func(q) for q in questions]
+#         results = await tqdm_asyncio.gather(*tasks)
+#     return results
 
 
 def main(args):
@@ -106,7 +109,13 @@ def main(args):
 
     # results = asyncio.run(attempt_all(questions))
     with ThreadPoolExecutor(max_workers=args.num_workers) as executor:
-        results = list(executor.map(lambda q: asyncio.run(attempt_question(q)), questions))
+        results = list(
+            tqdm(
+                executor.map(lambda q: attempt_question(q), questions),
+                total=len(questions),
+                desc="Processing questions",
+            )
+        )
 
     # You can rerun this script multiple times if there are failed API calls
     for result in results:
@@ -120,6 +129,7 @@ def main(args):
         }
 
     # cache responses
+    # os.makedirs(output_filepath, exist_ok=True)
     with open(output_filepath, "w") as f:
         json.dump(predictions, f, indent=4)
 

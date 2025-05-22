@@ -143,18 +143,18 @@ class EpisodicMemoryStore:
                     memory_data = json.load(f)
                     memory_list_adapter = TypeAdapter(List[EpisodicMemory])
                     self.memories = memory_list_adapter.validate_python(memory_data)
-                    print(
-                        f"Loaded {len(self.memories)} memories for sub-agent '{sub_agent}'"
-                    )
+                    # print(
+                    #     f"Loaded {len(self.memories)} memories for sub-agent '{sub_agent}'"
+                    # )
                     return True
             else:
-                print(
-                    f"Warning: No memory file found for sub-agent '{sub_agent}' at {memory_file_path}"
-                )
+                # print(
+                #     f"Warning: No memory file found for sub-agent '{sub_agent}' at {memory_file_path}"
+                # )
                 self.memories = []
                 return False
         except Exception as e:
-            print(f"Error loading memories for sub-agent '{sub_agent}': {e}")
+            # print(f"Error loading memories for sub-agent '{sub_agent}': {e}")
             self.memories = []
             return False
 
@@ -192,7 +192,7 @@ class EpisodicMemoryStore:
         # --- Get Query Embedding ---
         query_embedding = self._get_embedding(query)
         if not query_embedding or len(query_embedding) == 0:
-            print("Warning: Failed to generate query embedding.")
+            # print("Warning: Failed to generate query embedding.")
             return []
 
         # --- Calculate Scores for Each Memory ---
@@ -207,9 +207,9 @@ class EpisodicMemoryStore:
                 if relevance_score < 0.7:
                     continue
             else:
-                print(
-                    f"Warning: Skipping memory due to invalid embedding: {mem.content[:30]}..."
-                )
+                # print(
+                #     f"Warning: Skipping memory due to invalid embedding: {mem.content[:30]}..."
+                # )
                 continue
 
             # --- 2. Recency Score ---
@@ -224,9 +224,9 @@ class EpisodicMemoryStore:
                     hours_elapsed = time_diff_seconds / 3600
                     recency_score = math.exp(-recency_decay_rate * hours_elapsed)
                 except (ValueError, TypeError) as e:
-                    print(
-                        f"Warning: Could not parse timestamp '{timestamp_str}' for memory: {mem.content[:30]}... Error: {e}"
-                    )
+                    # print(
+                    #     f"Warning: Could not parse timestamp '{timestamp_str}' for memory: {mem.content[:30]}... Error: {e}"
+                    # )
                     recency_score = 0.1  # Assign low score
             else:
                 recency_score = 0.1  # Assign low score if no timestamp
@@ -249,12 +249,12 @@ class EpisodicMemoryStore:
 
         # --- Sort and Return ---
         if not scored_memories:
-            print(f"Warning: No relevant memories found for query: '{query[:30]}...'")
+            # print(f"Warning: No relevant memories found for query: '{query[:30]}...'")
             return []
 
         scored_memories.sort(key=lambda x: x[0], reverse=True)
         result = [mem for _, mem in scored_memories[:top_n]]
-        print(f"Retrieved {len(result)} memories (requested {top_n})")
+        # print(f"Retrieved {len(result)} memories (requested {top_n})")
         return result
 
     def get_all_memories_content(self) -> List[str]:
@@ -268,9 +268,9 @@ class EpisodicMemoryStore:
     def import_memories(self, data: List[Dict[str, Any]]):
         """Imports memories from a list of dictionaries (e.g., loaded from JSON)."""
         if not isinstance(data, list):
-            print(
-                "Warning: Invalid data format for importing episodic memories. Expected list."
-            )
+            # print(
+            #     "Warning: Invalid data format for importing episodic memories. Expected list."
+            # )
             self.memories = []
             return
 
@@ -278,9 +278,9 @@ class EpisodicMemoryStore:
             # Use Pydantic's TypeAdapter for validation and parsing
             memory_list_adapter = TypeAdapter(List[EpisodicMemory])
             self.memories = memory_list_adapter.validate_python(data)
-            print(f"Imported {len(self.memories)} episodic memories.")
+            # print(f"Imported {len(self.memories)} episodic memories.")
         except Exception as e:
-            print(f"Error importing episodic memories: {e}. Initializing empty memory.")
+            # print(f"Error importing episodic memories: {e}. Initializing empty memory.")
             self.memories = []
 
 
@@ -356,7 +356,7 @@ class ProceduralMemoryStore:
         Score update logic can be customized (e.g., averaging, replacement).
         """
         if not skill_description:
-            print("Warning: Skill description cannot be empty.")
+            # print("Warning: Skill description cannot be empty.")
             return
 
         # Normalize skill description for consistent key usage (optional)
@@ -378,9 +378,9 @@ class ProceduralMemoryStore:
                 existing_skill.competency_label = get_competency_label(
                     clamped_score
                 )  # Update label
-                print(
-                    f"Updated skill '{key}': Score -> {clamped_score:.2f} ({existing_skill.competency_label})"
-                )
+                # print(
+                #     f"Updated skill '{key}': Score -> {clamped_score:.2f} ({existing_skill.competency_label})"
+                # )
 
             # Append evidence and update timestamp
             existing_skill.evidence.append(new_evidence_entry)
@@ -390,9 +390,9 @@ class ProceduralMemoryStore:
         else:
             # --- Add New Skill ---
             if new_score is None:
-                print(
-                    f"Warning: Cannot add new skill '{key}' without an initial score."
-                )
+                # print(
+                #     f"Warning: Cannot add new skill '{key}' without an initial score."
+                # )
                 return
 
             clamped_score = max(0.0, min(1.0, new_score))
@@ -405,7 +405,7 @@ class ProceduralMemoryStore:
                 evidence=[new_evidence_entry],
             )
             self.skills[key] = new_skill
-            print(f"Added new skill '{key}': Score = {clamped_score:.2f} ({label})")
+            # print(f"Added new skill '{key}': Score = {clamped_score:.2f} ({label})")
 
     def get_skill(self, skill_description: str) -> Optional[ProceduralMemory]:
         """Retrieves a specific skill by its description."""
@@ -457,9 +457,9 @@ class ProceduralMemoryStore:
         try:
             skill_dict_adapter = TypeAdapter(Dict[str, ProceduralMemory])
             self.skills = skill_dict_adapter.validate_python(data)
-            print(f"Imported {len(self.skills)} procedural skills.")
+            # print(f"Imported {len(self.skills)} procedural skills.")
         except Exception as e:
-            print(f"Error importing procedural skills: {e}. Initializing empty skills.")
+            # print(f"Error importing procedural skills: {e}. Initializing empty skills.")
             self.skills = {}
 
 
@@ -481,7 +481,7 @@ def update_prompt(
     """
     skill_summary = skill_library.get_summary(include_average=True)
     if not skill_summary or "no specific skills" in skill_summary:
-        print("No significant skills found to update prompt.")
+        # print("No significant skills found to update prompt.")
         return old_prompt  # No skills to base update on
 
     # Meta-prompt instructing the LLM how to rewrite the prompt
@@ -504,7 +504,7 @@ def update_prompt(
         new_prompt = llm_call(prompt=prompt, system_prompt=meta_prompt, model=model)
         return new_prompt
     except Exception as e:
-        print(f"Error during LLM call for prompt update: {e}")
+        # print(f"Error during LLM call for prompt update: {e}")
         return old_prompt  # Return old prompt on exception
 
 
@@ -528,7 +528,7 @@ class SemanticMemoryStore:
             response = client.embeddings.create(input=text, model=self.embedding_model)
             return response.data[0].embedding
         except Exception as e:
-            print(f"Error getting embedding: {e}")
+            # print(f"Error getting embedding: {e}")
             return []
 
     def add_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None):
@@ -555,7 +555,7 @@ if __name__ == "__main__":
     class TestArgumentSchema(BaseModel):
         x: int
 
-    print("\n--- Memory Store Example with Recency & Feedback ---")
+#   print("\n--- Memory Store Example with Recency & Feedback ---")
     episodic_memory_store = EpisodicMemoryStore()
     procedural_memory_store = ProceduralMemoryStore()
     now = datetime.datetime.now(datetime.timezone.utc)
