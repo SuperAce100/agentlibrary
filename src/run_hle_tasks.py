@@ -23,7 +23,7 @@ def main():
     ds = load_dataset("cais/hle", split="test")
     print(f"Loaded {len(ds)} tasks from the dataset")
 
-    results_directory = ".data/HLE_results/HLE"
+    results_directory = "../results/HLE"
     
     # Create results directory if it doesn't exist
     os.makedirs(results_directory, exist_ok=True)
@@ -78,18 +78,9 @@ def main():
             task = json.dumps(task)
         
         try:
-            final_response = run(task, 100, verbose=False, trace_path=results_directory)
-            score_value = evaluate_final_response(final_response, answer)
-            
-            # Convert the raw score to a dictionary with the expected structure
-            result = {
-                'completed': True,
-                'score': int(score_value.strip()) if score_value.strip() in ['0', '1'] else 0,
-                'task_id': task_id,
-                'question': task[:200] + "..." if len(task) > 200 else task  # Include truncated question
-            }
-            
-            return result
+            final_response = run(task, False, results_directory)
+            score = evaluate_final_response(final_response, answer)
+            return score
         
         except subprocess.TimeoutExpired as e:
             elapsed_time = time.time() - start_time
@@ -99,8 +90,6 @@ def main():
                 f.write(f"Task timed out after {elapsed_time:.2f} seconds\n")
                 f.write(f"Question: {task}\n")
                 f.write(f"Correct answer: {answer}\n")
-            
-            return {'completed': False, 'score': 0, 'task_id': task_id}
         
         except subprocess.CalledProcessError as e:
             print(f"Error running task: {e}")
@@ -117,8 +106,6 @@ def main():
                     f.write(f"Stderr: {e.stderr}\n")
                 f.write(f"Question: {task}\n")
                 f.write(f"Correct answer: {answer}\n")
-            
-            return {'completed': False, 'score': 0, 'task_id': task_id}
         
         print("-" * 80)
         return final_response
