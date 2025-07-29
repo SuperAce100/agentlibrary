@@ -102,4 +102,15 @@ Here is some relevant context:
 <context>
 {context}
 </context>
+
+If "No relevant memories found." is in memories, do not use it at all. Disregard it completely.
+Here are some of your past responses that demonstrated excellent performance. 
+Please leverage any relevant information from these past interactions so you don't need to search for the same information again. 
+Build upon this existing knowledge rather than starting from scratch.
+Please use these examples to inform your current response style and approach:
+
+<memories>
+{memories}
+</memories>
+
 """
