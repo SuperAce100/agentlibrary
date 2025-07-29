@@ -1,12 +1,21 @@
 import os
+print("imported os")
 import json
+print("imported json")
 import subprocess
+print("imported subprocess")
 import time
+print("imported time")
 from datasets import load_dataset
+print("imported load_dataset")
 from tqdm import tqdm
+print("imported tqdm")
 from results_eval import evaluate_final_response
+print("imported evaluate_final_response")
 from concurrent.futures import ThreadPoolExecutor
+print("imported ThreadPoolExecutor")
 from main import run
+print("imported run")
 
 def main():
     # Load the HLE dataset
@@ -14,7 +23,7 @@ def main():
     ds = load_dataset("cais/hle", split="test")
     print(f"Loaded {len(ds)} tasks from the dataset")
 
-    results_directory = "../results/HLE"
+    results_directory = "../.data/HLE_results/HLE"
     
     # Create results directory if it doesn't exist
     os.makedirs(results_directory, exist_ok=True)
@@ -26,6 +35,8 @@ def main():
     # Process each task in the dataset using a thread pool for parallelization
     def process_task(task_info):
         i, example = task_info
+        task_id = f"task_{i}"  # Define task_id
+        start_time = time.time()  # Define start_time
         
         # Skip tasks with images
         if 'image' in example and example['image']:
@@ -52,8 +63,15 @@ def main():
         
         try:
             final_response = run(task, False, results_directory)
-            score = evaluate_final_response(final_response, answer)
-            return score
+            score_value = evaluate_final_response(final_response, answer)
+            
+            # Convert the raw score to a dictionary with the expected structure
+            result = {
+                'completed': True,
+                'score': int(score_value.strip()) if score_value.strip() in ['0', '1'] else 0
+            }
+            
+            return result
         
         except subprocess.TimeoutExpired as e:
             elapsed_time = time.time() - start_time
@@ -61,24 +79,28 @@ def main():
             # Save the timeout error to a file with more details
             with open(f"{results_directory}/{task_id}_timeout.txt", "w") as f:
                 f.write(f"Task timed out after {elapsed_time:.2f} seconds\n")
-                f.write(f"Command: {cmd}\n")
-                f.write(f"Partial stdout: {e.stdout if hasattr(e, 'stdout') and e.stdout else 'None'}\n")
-                f.write(f"Partial stderr: {e.stderr if hasattr(e, 'stderr') and e.stderr else 'None'}\n")
                 f.write(f"Question: {task}\n")
                 f.write(f"Correct answer: {answer}\n")
+            
+            return {'completed': False, 'score': 0}
         
         except subprocess.CalledProcessError as e:
             print(f"Error running task: {e}")
-            print(f"Error output: {e.stderr}")
+            if hasattr(e, 'stderr'):
+                print(f"Error output: {e.stderr}")
             
             # Save the error to a file with more details
             with open(f"{results_directory}/{task_id}_error.txt", "w") as f:
-                f.write(f"Command: {cmd}\n")
-                f.write(f"Return code: {e.returncode}\n")
-                f.write(f"Stdout: {e.stdout}\n")
-                f.write(f"Stderr: {e.stderr}\n")
+                if hasattr(e, 'returncode'):
+                    f.write(f"Return code: {e.returncode}\n")
+                if hasattr(e, 'stdout'):
+                    f.write(f"Stdout: {e.stdout}\n")
+                if hasattr(e, 'stderr'):
+                    f.write(f"Stderr: {e.stderr}\n")
                 f.write(f"Question: {task}\n")
                 f.write(f"Correct answer: {answer}\n")
+            
+            return {'completed': False, 'score': 0}
         
         print("-" * 80)
         return final_response

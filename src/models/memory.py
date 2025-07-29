@@ -3,8 +3,8 @@ import numpy as np
 from typing import Any, Optional, List, Dict
 from pydantic import BaseModel, Field, validator, TypeAdapter
 from openai import OpenAI
-import datetime  # Need datetime for timestamp comparison
-import math  # Need math for exponential decay
+import datetime 
+import math
 from dotenv import load_dotenv
 from models.llms import (
     llm_call,
